@@ -1,77 +1,316 @@
-
 "use client";
 
-import { useAccount } from "wagmi";
-import { Address } from "@scaffold-ui/components";
+import React, { useEffect, useState } from "react";
 import type { NextPage } from "next";
-import Link from "next/link";
-import { BugAntIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { useTargetNetwork } from "~~/hooks/scaffold-eth";
-
+import toast from "react-hot-toast";
+import { useAccount } from "wagmi";
+import { BottomNav, NavTab } from "~~/components/stride/BottomNav";
+import { HeaderNav } from "~~/components/stride/HeaderNav";
+import { HomeTab } from "~~/components/stride/HomeTab";
+import { OnboardingModal } from "~~/components/stride/OnboardingModal";
+import { PermissionsSheet } from "~~/components/stride/PermissionsSheet";
+import { PoolDetailModal } from "~~/components/stride/PoolDetailModal";
+import { PoolsTab } from "~~/components/stride/PoolsTab";
+import { PostRunModal } from "~~/components/stride/PostRunModal";
+import { ProfileTab } from "~~/components/stride/ProfileTab";
+import { ResultsModal } from "~~/components/stride/ResultsModal";
+import { StrideButton } from "~~/components/stride/StrideButton";
+import { TrackTab } from "~~/components/stride/TrackTab";
+import { LandingPage } from "~~/components/stride/landing/LandingPage";
+import { INITIAL_POOLS, StrideStorage } from "~~/services/stride/storage";
+import { Pool, TrophyBadge, UserProfile, UserRun } from "~~/types/stride";
 
 const Home: NextPage = () => {
-  const { address: connectedAddress } = useAccount();
-  const { targetNetwork } = useTargetNetwork();
+  const { address: connectedAddress, isConnected } = useAccount();
 
+  // Navigation State
+  const [currentTab, setCurrentTab] = useState<NavTab>("home");
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(true); // Default to demo mode for zero-friction access
+  const [hasEnteredApp, setHasEnteredApp] = useState<boolean>(false);
+
+  // Modals & Sheets
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+  const [showPermissions, setShowPermissions] = useState<boolean>(false);
+  const [selectedPoolForDetail, setSelectedPoolForDetail] = useState<Pool | null>(null);
+  const [selectedPoolForResults, setSelectedPoolForResults] = useState<Pool | null>(null);
+  const [finishedRunForModal, setFinishedRunForModal] = useState<UserRun | null>(null);
+  const [trackPreselectedPoolId, setTrackPreselectedPoolId] = useState<string | undefined>(undefined);
+
+  // App Data State
+  const [profile, setProfile] = useState<UserProfile>(() => StrideStorage.getProfile());
+  const [pools, setPools] = useState<Pool[]>(() => StrideStorage.getPools());
+  const [runs, setRuns] = useState<UserRun[]>(() => StrideStorage.getRuns());
+  const [badges, setBadges] = useState<TrophyBadge[]>(() => StrideStorage.getBadges());
+
+  // Mount & Initialization
+  useEffect(() => {
+    // Load from local storage
+    setProfile(StrideStorage.getProfile());
+    setPools(StrideStorage.getPools());
+    setRuns(StrideStorage.getRuns());
+    setBadges(StrideStorage.getBadges());
+
+    // Check onboarding
+    if (!StrideStorage.hasOnboarded()) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  // Sync connected wallet address if user connects
+  useEffect(() => {
+    if (isConnected && connectedAddress) {
+      const updated = StrideStorage.updateProfile({ address: connectedAddress });
+      setProfile(updated);
+      setHasEnteredApp(true);
+    }
+  }, [isConnected, connectedAddress]);
+
+  // Handle Onboarding Completion
+  const handleCompleteOnboarding = () => {
+    StrideStorage.setOnboarded();
+    setShowOnboarding(false);
+    if (!StrideStorage.hasGrantedPermissions()) {
+      setShowPermissions(true);
+    }
+  };
+
+  // Handle Permissions Completion
+  const handleConfirmPermissions = () => {
+    StrideStorage.setPermissionsGranted();
+    setShowPermissions(false);
+    toast.success("Stride sensors & gasless keys enabled!", { icon: "⚡" });
+  };
+
+  // Run Flow Handlers
+  const handleFinishRun = (newRun: UserRun) => {
+    setFinishedRunForModal(newRun);
+  };
+
+  const handleSubmitRunToPool = (run: UserRun, poolId: string) => {
+    const updatedRun = { ...run, poolId, submittedToPool: true };
+    StrideStorage.addRun(updatedRun);
+    setRuns(StrideStorage.getRuns());
+    setProfile(StrideStorage.getProfile());
+    setPools(StrideStorage.getPools());
+    setFinishedRunForModal(null);
+    toast.success("Activity submitted to pool! Signed EIP-712 checkpoint chain committed.", { icon: "🏁" });
+    setCurrentTab("pools");
+  };
+
+  const handleSaveRunSolo = (run: UserRun) => {
+    StrideStorage.addRun(run);
+    setRuns(StrideStorage.getRuns());
+    setProfile(StrideStorage.getProfile());
+    setFinishedRunForModal(null);
+    toast.success("Run saved to activity history! Keep the streak alive.", { icon: "👟" });
+    setCurrentTab("home");
+  };
+
+  // Pool Flow Handlers
+  const handleCreatePool = (poolData: Omit<Pool, "id" | "participants" | "totalPot" | "status" | "inviteCode">) => {
+    const id = `pool-${Date.now()}`;
+    const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const newPool: Pool = {
+      ...poolData,
+      id,
+      inviteCode: code,
+      status: "active",
+      totalPot: poolData.stakeAmount,
+      participants: [
+        {
+          address: profile.address,
+          name: "You (Creator)",
+          avatar: "🔥",
+          status: "in_progress",
+          distanceMeters: 0,
+          durationSeconds: 0,
+          isDisputed: false,
+        },
+      ],
+    };
+
+    StrideStorage.addPool(newPool);
+    setPools(StrideStorage.getPools());
+    toast.success(`Pool created! Invite friends with code ${code}`, { icon: "🎉" });
+  };
+
+  const handleJoinPoolByCode = (code: string): boolean => {
+    const participant = {
+      address: profile.address,
+      name: "You (Runner)",
+      avatar: "🔥",
+      status: "joined" as const,
+      distanceMeters: 0,
+      durationSeconds: 0,
+      isDisputed: false,
+    };
+
+    const success = StrideStorage.joinPool(code, participant);
+    if (success) {
+      setPools(StrideStorage.getPools());
+      toast.success("Joined pool! Stake deposited into common pot.", { icon: "💰" });
+      return true;
+    }
+    return false;
+  };
+
+  // Anti-Cheat "Spot the fake" Dispute Handler
+  const handleDispute = (poolId: string, suspectAddress: string) => {
+    const res = StrideStorage.disputeParticipant(poolId, suspectAddress, profile.address);
+    if (res.success) {
+      setPools(StrideStorage.getPools());
+      setProfile(StrideStorage.getProfile());
+      setBadges(StrideStorage.getBadges());
+      toast.success(`Dispute verified onchain! Cheater slashed. Bounty ${res.bounty} added to claimable balance!`, {
+        icon: "🕵️",
+        duration: 4000,
+      });
+    }
+  };
+
+  // Claim Winnings Handler
+  const handleClaimWinnings = () => {
+    const claimed = StrideStorage.claimAllWinnings();
+    setProfile(StrideStorage.getProfile());
+    toast.success(`Claimed ${claimed} to wallet! Monad pull-payment completed.`, { icon: "💸" });
+    if (selectedPoolForResults) {
+      setSelectedPoolForResults(null);
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // LANDING PAGE (shown when not connected and hasn't clicked "launch app")
+  // --------------------------------------------------------------------------
+  if (!isConnected && !hasEnteredApp) {
+    return (
+      <>
+        <LandingPage
+          onLaunchApp={() => {
+            setHasEnteredApp(true);
+            if (!StrideStorage.hasGrantedPermissions()) {
+              setShowPermissions(true);
+            }
+          }}
+        />
+        <OnboardingModal isOpen={showOnboarding} onComplete={handleCompleteOnboarding} />
+      </>
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // PRIMARY MOBILE-FIRST APP EXPERIENCE
+  // --------------------------------------------------------------------------
   return (
-    <>
-      <div className="flex items-center flex-col grow pt-10">
-        <div className="px-5">
-          <h1 className="text-center">
-            <span className="block text-2xl mb-2">Welcome to</span>
-            <span className="block text-4xl font-bold">Scaffold-ETH 2</span>
-            
-          </h1>
-          <div className="flex justify-center items-center space-x-2 flex-col">
-            <p className="my-2 font-medium">Connected Address:</p>
-            <Address address={connectedAddress} chain={targetNetwork} />
-          </div>
-          
-<p className="text-center text-lg">
-  Get started by editing{" "}
-  <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-    packages/nextjs/app/page.tsx
-  </code>
-</p>
-<p className="text-center text-lg">
-  Edit your smart contract{" "}
-  <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-    YourContract.sol
-  </code>{" "}
-  in{" "}
-  <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-    packages/hardhat/contracts
-  </code>
-</p>
+    <div className="min-h-screen bg-[#150E2C] flex flex-col items-center justify-start">
+      {/* Centered Mobile App Canvas */}
+      <div className="w-full max-w-md min-h-screen bg-[#0B061A] sm:border-x sm:border-[#362A5E] flex flex-col shadow-2xl relative">
+        {/* Top Header */}
+        <HeaderNav
+          isDemoMode={isDemoMode}
+          onToggleDemoMode={() => {
+            const next = !isDemoMode;
+            setIsDemoMode(next);
+            toast(next ? "Switched to Quick Demo Mode ⚡" : "Switched to Live Web3 Wallet 🔗", {
+              icon: next ? "⚡" : "🔗",
+            });
+          }}
+          onResetDemoData={() => {
+            StrideStorage.savePools(INITIAL_POOLS);
+            setPools(INITIAL_POOLS);
+            toast.success("Demo state reset to initial pools!");
+          }}
+        />
 
-        </div>
+        {/* Dynamic Tab Body */}
+        <main className="flex-1 w-full pt-2">
+          {currentTab === "home" && (
+            <HomeTab
+              profile={profile}
+              pools={pools}
+              recentRuns={runs}
+              onStartRunClick={() => setCurrentTab("track")}
+              onSelectPool={pool => setSelectedPoolForDetail(pool)}
+              onViewAllPools={() => setCurrentTab("pools")}
+            />
+          )}
 
-        <div className="grow bg-base-300 w-full mt-16 px-8 py-12">
-          <div className="flex justify-center items-center gap-12 flex-col md:flex-row">
-            <div className="flex flex-col bg-base-100 border border-base-300 px-10 py-10 text-center items-center max-w-xs">
-              <BugAntIcon className="h-8 w-8" />
-              <p>
-                Tinker with your smart contract using the{" "}
-                <Link href="/debug" passHref className="link">
-                  Debug Contracts
-                </Link>{" "}
-                tab.
-              </p>
-            </div>
-            <div className="flex flex-col bg-base-100 border border-base-300 px-10 py-10 text-center items-center max-w-xs">
-              <MagnifyingGlassIcon className="h-8 w-8" />
-              <p>
-                Explore your local transactions with the{" "}
-                <Link href="/blockexplorer" passHref className="link">
-                  Block Explorer
-                </Link>{" "}
-                tab.
-              </p>
-            </div>
-          </div>
-        </div>
+          {currentTab === "track" && (
+            <TrackTab
+              pools={pools}
+              preselectedPoolId={trackPreselectedPoolId}
+              runnerAddress={profile.address}
+              onFinishRun={handleFinishRun}
+            />
+          )}
+
+          {currentTab === "pools" && (
+            <PoolsTab
+              pools={pools}
+              onSelectPool={pool => setSelectedPoolForDetail(pool)}
+              onCreatePool={handleCreatePool}
+              onJoinPool={handleJoinPoolByCode}
+            />
+          )}
+
+          {currentTab === "profile" && (
+            <ProfileTab profile={profile} badges={badges} runs={runs} onClaimAll={handleClaimWinnings} />
+          )}
+        </main>
+
+        {/* Floating Bottom Navigation Thumb Dock */}
+        <BottomNav
+          currentTab={currentTab}
+          onSelectTab={tab => {
+            setCurrentTab(tab);
+            setTrackPreselectedPoolId(undefined); // reset pool track filter
+          }}
+        />
       </div>
-    </>
+
+      {/* OVERLAY MODALS */}
+
+      {/* 1. First-time swipe onboarding */}
+      <OnboardingModal isOpen={showOnboarding} onComplete={handleCompleteOnboarding} />
+
+      {/* 2. One-time Setup ("Enable Stride") */}
+      <PermissionsSheet isOpen={showPermissions} onConfirm={handleConfirmPermissions} />
+
+      {/* 3. Post-Run Summary & Share Card */}
+      <PostRunModal
+        run={finishedRunForModal}
+        pools={pools}
+        isOpen={!!finishedRunForModal}
+        onClose={() => setFinishedRunForModal(null)}
+        onSubmitToPool={handleSubmitRunToPool}
+        onSaveSolo={handleSaveRunSolo}
+      />
+
+      {/* 4. Pool Detail & "Spot the fake" Dispute Inspector */}
+      <PoolDetailModal
+        pool={selectedPoolForDetail}
+        isOpen={!!selectedPoolForDetail}
+        onClose={() => setSelectedPoolForDetail(null)}
+        onDispute={handleDispute}
+        onViewResults={pool => {
+          setSelectedPoolForDetail(null);
+          setSelectedPoolForResults(pool);
+        }}
+        onTrackForThisPool={pool => {
+          setSelectedPoolForDetail(null);
+          setTrackPreselectedPoolId(pool.id);
+          setCurrentTab("track");
+        }}
+      />
+
+      {/* 5. Results & Claim Winnings */}
+      <ResultsModal
+        pool={selectedPoolForResults}
+        claimableAmount={profile.claimableMON}
+        isOpen={!!selectedPoolForResults}
+        onClose={() => setSelectedPoolForResults(null)}
+        onClaim={handleClaimWinnings}
+      />
+    </div>
   );
 };
 

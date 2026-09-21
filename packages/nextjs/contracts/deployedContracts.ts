@@ -4,6 +4,2541 @@
  */
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
-const deployedContracts = {} as const;
+const deployedContracts = {
+  10143: {
+    Stride: {
+      address: "0xb9dc7fb5c9ec478481891c3e1d677a2c751b9833",
+      abi: [
+        {
+          type: "constructor",
+          inputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "BOUNTY_BPS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "DISPUTE_BOND",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "DISTANCE_TOLERANCE_BPS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MAX_CHECKPOINT_INTERVAL_SECONDS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MAX_LAT",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "int32",
+              internalType: "int32",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MAX_LNG",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "int32",
+              internalType: "int32",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MAX_PARTICIPANTS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MAX_SPEED_MPS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "METERS_PER_DEGREE",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MIN_CHECKPOINT_COUNT",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint32",
+              internalType: "uint32",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MIN_DISPUTE_WINDOW",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint64",
+              internalType: "uint64",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MIN_SPEED_FOR_MOTION_MPS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "bountyPaidOut",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "claimable",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "createPool",
+          inputs: [
+            {
+              name: "goalDistanceMeters",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "stakeAmount",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "joinDeadline",
+              type: "uint64",
+              internalType: "uint64",
+            },
+            {
+              name: "activityDeadline",
+              type: "uint64",
+              internalType: "uint64",
+            },
+            {
+              name: "disputeWindow",
+              type: "uint64",
+              internalType: "uint64",
+            },
+          ],
+          outputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "deviceKey",
+          inputs: [
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "dispute",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "participant",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "a",
+              type: "tuple",
+              internalType: "struct Stride.Checkpoint",
+              components: [
+                {
+                  name: "poolId",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "runner",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "index",
+                  type: "uint32",
+                  internalType: "uint32",
+                },
+                {
+                  name: "timestamp",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "lat",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "lng",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "cadenceSpm",
+                  type: "uint16",
+                  internalType: "uint16",
+                },
+                {
+                  name: "prevHash",
+                  type: "bytes32",
+                  internalType: "bytes32",
+                },
+              ],
+            },
+            {
+              name: "sigA",
+              type: "bytes",
+              internalType: "bytes",
+            },
+            {
+              name: "b",
+              type: "tuple",
+              internalType: "struct Stride.Checkpoint",
+              components: [
+                {
+                  name: "poolId",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "runner",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "index",
+                  type: "uint32",
+                  internalType: "uint32",
+                },
+                {
+                  name: "timestamp",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "lat",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "lng",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "cadenceSpm",
+                  type: "uint16",
+                  internalType: "uint16",
+                },
+                {
+                  name: "prevHash",
+                  type: "bytes32",
+                  internalType: "bytes32",
+                },
+              ],
+            },
+            {
+              name: "sigB",
+              type: "bytes",
+              internalType: "bytes",
+            },
+            {
+              name: "violationType",
+              type: "uint8",
+              internalType: "enum Stride.ViolationType",
+            },
+          ],
+          outputs: [],
+          stateMutability: "payable",
+        },
+        {
+          type: "function",
+          name: "disputeAggregateDistance",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "participant",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "chain",
+              type: "tuple[]",
+              internalType: "struct Stride.Checkpoint[]",
+              components: [
+                {
+                  name: "poolId",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "runner",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "index",
+                  type: "uint32",
+                  internalType: "uint32",
+                },
+                {
+                  name: "timestamp",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "lat",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "lng",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "cadenceSpm",
+                  type: "uint16",
+                  internalType: "uint16",
+                },
+                {
+                  name: "prevHash",
+                  type: "bytes32",
+                  internalType: "bytes32",
+                },
+              ],
+            },
+            {
+              name: "sigs",
+              type: "bytes[]",
+              internalType: "bytes[]",
+            },
+          ],
+          outputs: [],
+          stateMutability: "payable",
+        },
+        {
+          type: "function",
+          name: "eip712Domain",
+          inputs: [],
+          outputs: [
+            {
+              name: "fields",
+              type: "bytes1",
+              internalType: "bytes1",
+            },
+            {
+              name: "name",
+              type: "string",
+              internalType: "string",
+            },
+            {
+              name: "version",
+              type: "string",
+              internalType: "string",
+            },
+            {
+              name: "chainId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "verifyingContract",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "salt",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+            {
+              name: "extensions",
+              type: "uint256[]",
+              internalType: "uint256[]",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "finalize",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "forfeitedBonds",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "getParticipants",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "address[]",
+              internalType: "address[]",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "getPool",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "tuple",
+              internalType: "struct Stride.Pool",
+              components: [
+                {
+                  name: "creator",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "stakeAmount",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "goalDistanceMeters",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "joinDeadline",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "activityDeadline",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "disputeWindow",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "finalized",
+                  type: "bool",
+                  internalType: "bool",
+                },
+                {
+                  name: "participants",
+                  type: "address[]",
+                  internalType: "address[]",
+                },
+              ],
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "getSubmissionStatus",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "participant",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint8",
+              internalType: "enum Stride.SubmissionStatus",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "hasJoined",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "bool",
+              internalType: "bool",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "hashCheckpoint",
+          inputs: [
+            {
+              name: "c",
+              type: "tuple",
+              internalType: "struct Stride.Checkpoint",
+              components: [
+                {
+                  name: "poolId",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "runner",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "index",
+                  type: "uint32",
+                  internalType: "uint32",
+                },
+                {
+                  name: "timestamp",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "lat",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "lng",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "cadenceSpm",
+                  type: "uint16",
+                  internalType: "uint16",
+                },
+                {
+                  name: "prevHash",
+                  type: "bytes32",
+                  internalType: "bytes32",
+                },
+              ],
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "joinPool",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [],
+          stateMutability: "payable",
+        },
+        {
+          type: "function",
+          name: "poolCount",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "registerDeviceKey",
+          inputs: [
+            {
+              name: "sessionKey",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "submissions",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "status",
+              type: "uint8",
+              internalType: "enum Stride.SubmissionStatus",
+            },
+            {
+              name: "commitHash",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+            {
+              name: "distanceMeters",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "durationSeconds",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "checkpointCount",
+              type: "uint32",
+              internalType: "uint32",
+            },
+            {
+              name: "ipfsCID",
+              type: "string",
+              internalType: "string",
+            },
+            {
+              name: "submittedAt",
+              type: "uint64",
+              internalType: "uint64",
+            },
+            {
+              name: "signingKey",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "submitActivity",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "commitHash",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+            {
+              name: "distanceMeters",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "durationSeconds",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "checkpointCount",
+              type: "uint32",
+              internalType: "uint32",
+            },
+            {
+              name: "ipfsCID",
+              type: "string",
+              internalType: "string",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "withdraw",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "event",
+          name: "ActivityDisputed",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "participant",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "disputer",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "violationType",
+              type: "uint8",
+              indexed: false,
+              internalType: "enum Stride.ViolationType",
+            },
+            {
+              name: "confirmed",
+              type: "bool",
+              indexed: false,
+              internalType: "bool",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "ActivitySubmitted",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "participant",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "commitHash",
+              type: "bytes32",
+              indexed: false,
+              internalType: "bytes32",
+            },
+            {
+              name: "distanceMeters",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "durationSeconds",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "ipfsCID",
+              type: "string",
+              indexed: false,
+              internalType: "string",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "DeviceKeyRegistered",
+          inputs: [
+            {
+              name: "owner",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "sessionKey",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "EIP712DomainChanged",
+          inputs: [],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "Finalized",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "winnerCount",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "payoutPerWinner",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "Joined",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "participant",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "PoolCreated",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "creator",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "stakeAmount",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "goalDistanceMeters",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "joinDeadline",
+              type: "uint64",
+              indexed: false,
+              internalType: "uint64",
+            },
+            {
+              name: "activityDeadline",
+              type: "uint64",
+              indexed: false,
+              internalType: "uint64",
+            },
+            {
+              name: "disputeWindow",
+              type: "uint64",
+              indexed: false,
+              internalType: "uint64",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "error",
+          name: "AlreadyFinalized",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "AlreadyJoined",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "AlreadySubmitted",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "BadCheckpointSignature",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "BadDeadlines",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "CannotDisputeSelf",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ChainLengthMismatch",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ChainNotContiguous",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "CheckpointMismatch",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "CommitHashMismatch",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "DisputeWindowTooShort",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ECDSAInvalidSignature",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ECDSAInvalidSignatureLength",
+          inputs: [
+            {
+              name: "length",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+        },
+        {
+          type: "error",
+          name: "ECDSAInvalidSignatureS",
+          inputs: [
+            {
+              name: "s",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+          ],
+        },
+        {
+          type: "error",
+          name: "InsufficientCheckpointDensity",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "InvalidChainedCheckpoints",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "InvalidShortString",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "JoinClosed",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "NoDeviceKeyRegistered",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "NotInDisputeWindow",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "NotParticipant",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "NothingToWithdraw",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "PoolFinalized",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "PoolFull",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ReentrancyGuardReentrantCall",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "StringTooLong",
+          inputs: [
+            {
+              name: "str",
+              type: "string",
+              internalType: "string",
+            },
+          ],
+        },
+        {
+          type: "error",
+          name: "SubmissionClosed",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "SubmissionNotDisputable",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "TooEarly",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "TransferFailed",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "WrongBond",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "WrongStakeAmount",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ZeroGoal",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ZeroStake",
+          inputs: [],
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 61620625,
+    },
+  },
+  31337: {
+    Stride: {
+      address: "0x700b6a60ce7eaaea56f065753d8dcb9653dbad35",
+      abi: [
+        {
+          type: "constructor",
+          inputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "BOUNTY_BPS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "DISPUTE_BOND",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "DISTANCE_TOLERANCE_BPS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MAX_CHECKPOINT_INTERVAL_SECONDS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MAX_LAT",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "int32",
+              internalType: "int32",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MAX_LNG",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "int32",
+              internalType: "int32",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MAX_PARTICIPANTS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MAX_SPEED_MPS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "METERS_PER_DEGREE",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MIN_CHECKPOINT_COUNT",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint32",
+              internalType: "uint32",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MIN_DISPUTE_WINDOW",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint64",
+              internalType: "uint64",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "MIN_SPEED_FOR_MOTION_MPS",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "bountyPaidOut",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "claimable",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "createPool",
+          inputs: [
+            {
+              name: "goalDistanceMeters",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "stakeAmount",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "joinDeadline",
+              type: "uint64",
+              internalType: "uint64",
+            },
+            {
+              name: "activityDeadline",
+              type: "uint64",
+              internalType: "uint64",
+            },
+            {
+              name: "disputeWindow",
+              type: "uint64",
+              internalType: "uint64",
+            },
+          ],
+          outputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "deviceKey",
+          inputs: [
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "dispute",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "participant",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "a",
+              type: "tuple",
+              internalType: "struct Stride.Checkpoint",
+              components: [
+                {
+                  name: "poolId",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "runner",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "index",
+                  type: "uint32",
+                  internalType: "uint32",
+                },
+                {
+                  name: "timestamp",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "lat",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "lng",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "cadenceSpm",
+                  type: "uint16",
+                  internalType: "uint16",
+                },
+                {
+                  name: "prevHash",
+                  type: "bytes32",
+                  internalType: "bytes32",
+                },
+              ],
+            },
+            {
+              name: "sigA",
+              type: "bytes",
+              internalType: "bytes",
+            },
+            {
+              name: "b",
+              type: "tuple",
+              internalType: "struct Stride.Checkpoint",
+              components: [
+                {
+                  name: "poolId",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "runner",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "index",
+                  type: "uint32",
+                  internalType: "uint32",
+                },
+                {
+                  name: "timestamp",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "lat",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "lng",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "cadenceSpm",
+                  type: "uint16",
+                  internalType: "uint16",
+                },
+                {
+                  name: "prevHash",
+                  type: "bytes32",
+                  internalType: "bytes32",
+                },
+              ],
+            },
+            {
+              name: "sigB",
+              type: "bytes",
+              internalType: "bytes",
+            },
+            {
+              name: "violationType",
+              type: "uint8",
+              internalType: "enum Stride.ViolationType",
+            },
+          ],
+          outputs: [],
+          stateMutability: "payable",
+        },
+        {
+          type: "function",
+          name: "disputeAggregateDistance",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "participant",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "chain",
+              type: "tuple[]",
+              internalType: "struct Stride.Checkpoint[]",
+              components: [
+                {
+                  name: "poolId",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "runner",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "index",
+                  type: "uint32",
+                  internalType: "uint32",
+                },
+                {
+                  name: "timestamp",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "lat",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "lng",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "cadenceSpm",
+                  type: "uint16",
+                  internalType: "uint16",
+                },
+                {
+                  name: "prevHash",
+                  type: "bytes32",
+                  internalType: "bytes32",
+                },
+              ],
+            },
+            {
+              name: "sigs",
+              type: "bytes[]",
+              internalType: "bytes[]",
+            },
+          ],
+          outputs: [],
+          stateMutability: "payable",
+        },
+        {
+          type: "function",
+          name: "eip712Domain",
+          inputs: [],
+          outputs: [
+            {
+              name: "fields",
+              type: "bytes1",
+              internalType: "bytes1",
+            },
+            {
+              name: "name",
+              type: "string",
+              internalType: "string",
+            },
+            {
+              name: "version",
+              type: "string",
+              internalType: "string",
+            },
+            {
+              name: "chainId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "verifyingContract",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "salt",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+            {
+              name: "extensions",
+              type: "uint256[]",
+              internalType: "uint256[]",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "finalize",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "forfeitedBonds",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "getParticipants",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "address[]",
+              internalType: "address[]",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "getPool",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "tuple",
+              internalType: "struct Stride.Pool",
+              components: [
+                {
+                  name: "creator",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "stakeAmount",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "goalDistanceMeters",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "joinDeadline",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "activityDeadline",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "disputeWindow",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "finalized",
+                  type: "bool",
+                  internalType: "bool",
+                },
+                {
+                  name: "participants",
+                  type: "address[]",
+                  internalType: "address[]",
+                },
+              ],
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "getSubmissionStatus",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "participant",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint8",
+              internalType: "enum Stride.SubmissionStatus",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "hasJoined",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "bool",
+              internalType: "bool",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "hashCheckpoint",
+          inputs: [
+            {
+              name: "c",
+              type: "tuple",
+              internalType: "struct Stride.Checkpoint",
+              components: [
+                {
+                  name: "poolId",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "runner",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "index",
+                  type: "uint32",
+                  internalType: "uint32",
+                },
+                {
+                  name: "timestamp",
+                  type: "uint64",
+                  internalType: "uint64",
+                },
+                {
+                  name: "lat",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "lng",
+                  type: "int32",
+                  internalType: "int32",
+                },
+                {
+                  name: "cadenceSpm",
+                  type: "uint16",
+                  internalType: "uint16",
+                },
+                {
+                  name: "prevHash",
+                  type: "bytes32",
+                  internalType: "bytes32",
+                },
+              ],
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "joinPool",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [],
+          stateMutability: "payable",
+        },
+        {
+          type: "function",
+          name: "poolCount",
+          inputs: [],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "registerDeviceKey",
+          inputs: [
+            {
+              name: "sessionKey",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "submissions",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "status",
+              type: "uint8",
+              internalType: "enum Stride.SubmissionStatus",
+            },
+            {
+              name: "commitHash",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+            {
+              name: "distanceMeters",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "durationSeconds",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "checkpointCount",
+              type: "uint32",
+              internalType: "uint32",
+            },
+            {
+              name: "ipfsCID",
+              type: "string",
+              internalType: "string",
+            },
+            {
+              name: "submittedAt",
+              type: "uint64",
+              internalType: "uint64",
+            },
+            {
+              name: "signingKey",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "submitActivity",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "commitHash",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+            {
+              name: "distanceMeters",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "durationSeconds",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "checkpointCount",
+              type: "uint32",
+              internalType: "uint32",
+            },
+            {
+              name: "ipfsCID",
+              type: "string",
+              internalType: "string",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "withdraw",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "event",
+          name: "ActivityDisputed",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "participant",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "disputer",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "violationType",
+              type: "uint8",
+              indexed: false,
+              internalType: "enum Stride.ViolationType",
+            },
+            {
+              name: "confirmed",
+              type: "bool",
+              indexed: false,
+              internalType: "bool",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "ActivitySubmitted",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "participant",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "commitHash",
+              type: "bytes32",
+              indexed: false,
+              internalType: "bytes32",
+            },
+            {
+              name: "distanceMeters",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "durationSeconds",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "ipfsCID",
+              type: "string",
+              indexed: false,
+              internalType: "string",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "DeviceKeyRegistered",
+          inputs: [
+            {
+              name: "owner",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "sessionKey",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "EIP712DomainChanged",
+          inputs: [],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "Finalized",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "winnerCount",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "payoutPerWinner",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "Joined",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "participant",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "PoolCreated",
+          inputs: [
+            {
+              name: "poolId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "creator",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "stakeAmount",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "goalDistanceMeters",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "joinDeadline",
+              type: "uint64",
+              indexed: false,
+              internalType: "uint64",
+            },
+            {
+              name: "activityDeadline",
+              type: "uint64",
+              indexed: false,
+              internalType: "uint64",
+            },
+            {
+              name: "disputeWindow",
+              type: "uint64",
+              indexed: false,
+              internalType: "uint64",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "error",
+          name: "AlreadyFinalized",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "AlreadyJoined",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "AlreadySubmitted",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "BadCheckpointSignature",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "BadDeadlines",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "CannotDisputeSelf",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ChainLengthMismatch",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ChainNotContiguous",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "CheckpointMismatch",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "CommitHashMismatch",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "DisputeWindowTooShort",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ECDSAInvalidSignature",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ECDSAInvalidSignatureLength",
+          inputs: [
+            {
+              name: "length",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+        },
+        {
+          type: "error",
+          name: "ECDSAInvalidSignatureS",
+          inputs: [
+            {
+              name: "s",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+          ],
+        },
+        {
+          type: "error",
+          name: "InsufficientCheckpointDensity",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "InvalidChainedCheckpoints",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "InvalidShortString",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "JoinClosed",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "NoDeviceKeyRegistered",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "NotInDisputeWindow",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "NotParticipant",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "NothingToWithdraw",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "PoolFinalized",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "PoolFull",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ReentrancyGuardReentrantCall",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "StringTooLong",
+          inputs: [
+            {
+              name: "str",
+              type: "string",
+              internalType: "string",
+            },
+          ],
+        },
+        {
+          type: "error",
+          name: "SubmissionClosed",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "SubmissionNotDisputable",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "TooEarly",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "TransferFailed",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "WrongBond",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "WrongStakeAmount",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ZeroGoal",
+          inputs: [],
+        },
+        {
+          type: "error",
+          name: "ZeroStake",
+          inputs: [],
+        },
+      ],
+      inheritedFunctions: {},
+      deployedOnBlock: 1,
+    },
+  },
+} as const;
 
 export default deployedContracts satisfies GenericContractsDeclaration;

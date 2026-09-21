@@ -6,7 +6,15 @@ fs_permissions = [{ access = "read-write", path = "./"}]
 extra_output = ["evm.bytecode.opcodes"]
 optimizer = true
 optimizer_runs = 200
+# Stride's dispute() has enough params + locals to hit "stack too deep" under the
+# legacy codegen — via-ir is the standard fix, at the cost of slower compiles.
+via_ir = true
 
+[fuzz]
+# Higher than Foundry's default (256) since the GPS anti-cheat math is the part of
+# this project that most needs to be right — this is deliberate, not accidental.
+# (Matches the standalone top-level project's foundry.toml — kept in sync here too.)
+runs = 2000
 
 [rpc_endpoints]
 default_network = "http://127.0.0.1:8545"
@@ -29,6 +37,11 @@ scrollSepolia = "https://sepolia-rpc.scroll.io"
 scroll = "https://rpc.scroll.io"
 pgn = "https://rpc.publicgoods.network"
 pgnTestnet = "https://sepolia.publicgoods.network"
+# Verified 2026-09-11: testnet was reset from genesis Dec 16 2025 and the old
+# rpc.testnet.monad.xyz domain no longer resolves at all. Current primary RPC per
+# https://docs.monad.xyz/developer-essentials/testnet (re-check before relying on this
+# long-term — Monad's endpoints have already changed once this season).
+monadTestnet = "https://testnet-rpc.monad.xyz"
 
 
 localhost = "http://127.0.0.1:8545"
