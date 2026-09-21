@@ -17,7 +17,8 @@ import { ResultsModal } from "~~/components/stride/ResultsModal";
 import { StrideButton } from "~~/components/stride/StrideButton";
 import { TrackTab } from "~~/components/stride/TrackTab";
 import { LandingPage } from "~~/components/stride/landing/LandingPage";
-import { INITIAL_POOLS, StrideStorage } from "~~/services/stride/storage";
+import { useStridePools } from "~~/hooks/stride/useStridePools";
+import { StrideStorage } from "~~/services/stride/storage";
 import { Pool, TrophyBadge, UserProfile, UserRun } from "~~/types/stride";
 
 const Home: NextPage = () => {
@@ -38,7 +39,7 @@ const Home: NextPage = () => {
 
   // App Data State
   const [profile, setProfile] = useState<UserProfile>(() => StrideStorage.getProfile());
-  const [pools, setPools] = useState<Pool[]>(() => StrideStorage.getPools());
+  const { pools, isLoading: poolsLoading, refetch: refetchPools } = useStridePools();
   const [runs, setRuns] = useState<UserRun[]>(() => StrideStorage.getRuns());
   const [badges, setBadges] = useState<TrophyBadge[]>(() => StrideStorage.getBadges());
 
@@ -46,7 +47,6 @@ const Home: NextPage = () => {
   useEffect(() => {
     // Load from local storage
     setProfile(StrideStorage.getProfile());
-    setPools(StrideStorage.getPools());
     setRuns(StrideStorage.getRuns());
     setBadges(StrideStorage.getBadges());
 
@@ -86,14 +86,14 @@ const Home: NextPage = () => {
     setFinishedRunForModal(newRun);
   };
 
-  const handleSubmitRunToPool = (run: UserRun, poolId: string) => {
+  // Called by PostRunModal AFTER a real `submitActivity` transaction has already
+  // confirmed onchain — this just mirrors that into local run history for display.
+  const handleRunSubmitted = (run: UserRun, poolId: string) => {
     const updatedRun = { ...run, poolId, submittedToPool: true };
     StrideStorage.addRun(updatedRun);
     setRuns(StrideStorage.getRuns());
     setProfile(StrideStorage.getProfile());
-    setPools(StrideStorage.getPools());
     setFinishedRunForModal(null);
-    toast.success("Activity submitted to pool! Signed EIP-712 checkpoint chain committed.", { icon: "🏁" });
     setCurrentTab("pools");
   };
 
@@ -106,59 +106,16 @@ const Home: NextPage = () => {
     setCurrentTab("home");
   };
 
-  // Pool Flow Handlers
-  const handleCreatePool = (poolData: Omit<Pool, "id" | "participants" | "totalPot" | "status" | "inviteCode">) => {
-    const id = `pool-${Date.now()}`;
-    const code = Math.random().toString(36).substring(2, 7).toUpperCase();
-    const newPool: Pool = {
-      ...poolData,
-      id,
-      inviteCode: code,
-      status: "active",
-      totalPot: poolData.stakeAmount,
-      participants: [
-        {
-          address: profile.address,
-          name: "You (Creator)",
-          avatar: "🔥",
-          status: "in_progress",
-          distanceMeters: 0,
-          durationSeconds: 0,
-          isDisputed: false,
-        },
-      ],
-    };
-
-    StrideStorage.addPool(newPool);
-    setPools(StrideStorage.getPools());
-    toast.success(`Pool created! Invite friends with code ${code}`, { icon: "🎉" });
-  };
-
-  const handleJoinPoolByCode = (code: string): boolean => {
-    const participant = {
-      address: profile.address,
-      name: "You (Runner)",
-      avatar: "🔥",
-      status: "joined" as const,
-      distanceMeters: 0,
-      durationSeconds: 0,
-      isDisputed: false,
-    };
-
-    const success = StrideStorage.joinPool(code, participant);
-    if (success) {
-      setPools(StrideStorage.getPools());
-      toast.success("Joined pool! Stake deposited into common pot.", { icon: "💰" });
-      return true;
-    }
-    return false;
-  };
-
   // Anti-Cheat "Spot the fake" Dispute Handler
+  // NOTE: still driven by mock `suspiciousPattern` data, which real pools
+  // (read live from the contract) never populate — real dispute() wiring,
+  // which needs a runner's actual signed checkpoint chain, is a separate,
+  // not-yet-queued step. Left in place so this doesn't error for old local
+  // run history; it's effectively dormant against real pools.
   const handleDispute = (poolId: string, suspectAddress: string) => {
     const res = StrideStorage.disputeParticipant(poolId, suspectAddress, profile.address);
     if (res.success) {
-      setPools(StrideStorage.getPools());
+      refetchPools();
       setProfile(StrideStorage.getProfile());
       setBadges(StrideStorage.getBadges());
       toast.success(`Dispute verified onchain! Cheater slashed. Bounty ${res.bounty} added to claimable balance!`, {
@@ -214,11 +171,6 @@ const Home: NextPage = () => {
               icon: next ? "⚡" : "🔗",
             });
           }}
-          onResetDemoData={() => {
-            StrideStorage.savePools(INITIAL_POOLS);
-            setPools(INITIAL_POOLS);
-            toast.success("Demo state reset to initial pools!");
-          }}
         />
 
         {/* Dynamic Tab Body */}
@@ -246,9 +198,9 @@ const Home: NextPage = () => {
           {currentTab === "pools" && (
             <PoolsTab
               pools={pools}
+              isLoading={poolsLoading}
               onSelectPool={pool => setSelectedPoolForDetail(pool)}
-              onCreatePool={handleCreatePool}
-              onJoinPool={handleJoinPoolByCode}
+              onPoolsChanged={refetchPools}
             />
           )}
 
@@ -281,8 +233,9 @@ const Home: NextPage = () => {
         pools={pools}
         isOpen={!!finishedRunForModal}
         onClose={() => setFinishedRunForModal(null)}
-        onSubmitToPool={handleSubmitRunToPool}
+        onSubmitted={handleRunSubmitted}
         onSaveSolo={handleSaveRunSolo}
+        onPoolsChanged={refetchPools}
       />
 
       {/* 4. Pool Detail & "Spot the fake" Dispute Inspector */}

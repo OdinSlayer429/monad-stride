@@ -4,10 +4,9 @@ import { RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 interface HeaderNavProps {
   isDemoMode: boolean;
   onToggleDemoMode: () => void;
-  onResetDemoData: () => void;
 }
 
-export const HeaderNav: React.FC<HeaderNavProps> = ({ isDemoMode, onToggleDemoMode, onResetDemoData }) => {
+export const HeaderNav: React.FC<HeaderNavProps> = ({ isDemoMode, onToggleDemoMode }) => {
   return (
     <header className="sticky top-0 z-40 w-full bg-[#150E2C]/90 backdrop-blur-md border-b border-[#1E1A14] px-4 py-3">
       <div className="max-w-md mx-auto flex items-center justify-between gap-2">

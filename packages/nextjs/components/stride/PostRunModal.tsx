@@ -1,15 +1,20 @@
 import React, { useState } from "react";
 import { StarburstBadge } from "./StrideBadge";
 import { StrideButton } from "./StrideButton";
+import { useAccount } from "wagmi";
+import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { pinCheckpoints } from "~~/services/stride/ipfs";
 import { Pool, UserRun } from "~~/types/stride";
+import { notification } from "~~/utils/scaffold-eth";
 
 interface PostRunModalProps {
   run: UserRun | null;
   pools: Pool[];
   isOpen: boolean;
   onClose: () => void;
-  onSubmitToPool: (run: UserRun, poolId: string) => void;
+  onSubmitted: (run: UserRun, poolId: string) => void;
   onSaveSolo: (run: UserRun) => void;
+  onPoolsChanged: () => void;
 }
 
 export const PostRunModal: React.FC<PostRunModalProps> = ({
@@ -17,24 +22,71 @@ export const PostRunModal: React.FC<PostRunModalProps> = ({
   pools,
   isOpen,
   onClose,
-  onSubmitToPool,
+  onSubmitted,
   onSaveSolo,
+  onPoolsChanged,
 }) => {
-  const [selectedPoolId, setSelectedPoolId] = useState<string>(run?.poolId || "");
   const [copiedShare, setCopiedShare] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
 
+  const { isConnected, address: connectedAddress } = useAccount();
+  const { writeContractAsync } = useScaffoldWriteContract({ contractName: "Stride" });
+
   if (!isOpen || !run) return null;
 
-  const eligiblePools = pools.filter(p => p.status === "active" || p.status === "open");
+  // Checkpoints are signed with a specific poolId baked in from the moment tracking
+  // started (see TrackTab's handleStartRun) — a run can only ever be submitted to
+  // whichever pool (if any) was actually linked before the run, not picked after the
+  // fact, since a real dispute checks a checkpoint's own poolId field against the pool
+  // it was submitted to.
+  const linkedPool = run.poolId ? pools.find(p => p.id === run.poolId) : undefined;
 
-  const handlePoolSubmit = () => {
-    if (!selectedPoolId) return;
+  const handlePoolSubmit = async () => {
+    if (!linkedPool) return;
+    if (!isConnected) {
+      notification.error("Connect a wallet first.");
+      return;
+    }
+    const lastCheckpoint = run.checkpoints[run.checkpoints.length - 1];
+    if (!lastCheckpoint?.digest || run.checkpoints.length === 0) {
+      notification.error("No signed checkpoints on this run — nothing to submit onchain.");
+      return;
+    }
+
     setSubmitting(true);
-    setTimeout(() => {
+    try {
+      // Best-effort — a dispute checks the onchain commitHash/signatures below, never
+      // ipfsCID, so a failed/unconfigured pin (e.g. no Pinata key set up yet) falls
+      // back to an empty CID rather than blocking the real submission.
+      const cid = await pinCheckpoints(
+        linkedPool.id,
+        connectedAddress ?? run.checkpoints[0]?.runner ?? "",
+        run.checkpoints,
+      );
+      if (!cid) {
+        notification.info("IPFS pinning isn't set up yet — submitting without a CID (doesn't affect disputes).");
+      }
+
+      await writeContractAsync({
+        functionName: "submitActivity",
+        args: [
+          BigInt(linkedPool.id),
+          lastCheckpoint.digest as `0x${string}`,
+          BigInt(Math.round(run.distanceMeters)),
+          BigInt(Math.round(run.durationSeconds)),
+          run.checkpoints.length,
+          cid ?? "",
+        ],
+      });
+
+      notification.success("Activity submitted onchain — claimable if you hit the goal!");
+      onPoolsChanged();
+      onSubmitted(run, linkedPool.id);
+    } catch {
+      // useScaffoldWriteContract already surfaces a parsed error notification on failure.
+    } finally {
       setSubmitting(false);
-      onSubmitToPool(run, selectedPoolId);
-    }, 800);
+    }
   };
 
   const handleShareCard = () => {
@@ -131,34 +183,19 @@ export const PostRunModal: React.FC<PostRunModalProps> = ({
           <span>📸 {copiedShare ? "copied story link! 📋" : "share card to group chat"}</span>
         </button>
 
-        {/* POOL SUBMISSION SELECTOR */}
-        {eligiblePools.length > 0 && (
+        {/* POOL SUBMISSION — only the pool actually linked before tracking started */}
+        {linkedPool && (
           <div className="glass-card p-3.5 flex flex-col gap-2.5">
             <div>
-              <span className="text-xs font-black text-white lowercase">submit to staking pool</span>
+              <span className="text-xs font-black text-white lowercase">submit to {linkedPool.title}</span>
               <p className="text-[11px] text-[#C7BEEA]/60">
-                Commit your signed GPS checkpoint chain to claim your stake.
+                Commits your signed GPS checkpoint chain onchain — claimable if you hit the goal.
               </p>
             </div>
 
-            <select
-              value={selectedPoolId}
-              onChange={e => setSelectedPoolId(e.target.value)}
-              className="w-full p-2.5 rounded-xl bg-[#201B14] border border-white/10 text-white text-xs font-bold focus:border-[#CCFF00] outline-none lowercase"
-            >
-              <option value="">-- select a pool --</option>
-              {eligiblePools.map(pool => (
-                <option key={pool.id} value={pool.id}>
-                  {pool.title} (Goal: {(pool.goalDistanceMeters / 1000).toFixed(1)} km)
-                </option>
-              ))}
-            </select>
-
-            {selectedPoolId && (
-              <StrideButton variant="neon" size="md" fullWidth disabled={submitting} onClick={handlePoolSubmit}>
-                {submitting ? "signing & submitting..." : "submit to pool ↗"}
-              </StrideButton>
-            )}
+            <StrideButton variant="neon" size="md" fullWidth disabled={submitting} onClick={handlePoolSubmit}>
+              {submitting ? "confirm in wallet..." : "submit to pool ↗"}
+            </StrideButton>
           </div>
         )}
 

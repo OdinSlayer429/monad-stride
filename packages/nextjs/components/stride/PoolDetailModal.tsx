@@ -78,17 +78,17 @@ export const PoolDetailModal: React.FC<PoolDetailModalProps> = ({
           <StarburstBadge text="POT" subtext="MON" color="neon" size="md" />
         </div>
 
-        {/* Invite Code Bar */}
+        {/* Pool ID Bar */}
         <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-[#C7BEEA]/60 font-bold lowercase">invite code:</span>
+            <span className="text-xs text-[#C7BEEA]/60 font-bold lowercase">pool id:</span>
             <span className="text-xs font-mono font-black text-[#CCFF00] tracking-wider">{pool.inviteCode}</span>
           </div>
           <button
             onClick={handleCopyInvite}
             className="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-[11px] font-bold text-white lowercase"
           >
-            {copiedCode ? "copied! ✓" : "copy link 📋"}
+            {copiedCode ? "copied! ✓" : "copy id 📋"}
           </button>
         </div>
 

@@ -1,8 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StarburstBadge } from "./StrideBadge";
 import { StrideButton } from "./StrideButton";
 import { FloatingChips } from "./landing/FloatingChips";
+import { useAccount } from "wagmi";
+import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { getSessionKeyAddress } from "~~/services/stride/sessionKey";
 import { TrophyBadge, UserProfile, UserRun } from "~~/types/stride";
+import { notification } from "~~/utils/scaffold-eth";
 
 interface ProfileTabProps {
   profile: UserProfile;
@@ -14,6 +18,44 @@ interface ProfileTabProps {
 export const ProfileTab: React.FC<ProfileTabProps> = ({ profile, badges, runs, onClaimAll }) => {
   const [copiedAddr, setCopiedAddr] = useState<boolean>(false);
   const [claiming, setClaiming] = useState<boolean>(false);
+  const [sessionKeyAddress, setSessionKeyAddress] = useState<string | null>(null);
+
+  const { address: connectedAddress, isConnected } = useAccount();
+
+  // The session key is generated client-side (see services/stride/sessionKey.ts) —
+  // read it after mount only, so this never runs during server-side rendering.
+  useEffect(() => {
+    setSessionKeyAddress(getSessionKeyAddress());
+  }, []);
+
+  const { data: registeredKeyOnChain, refetch: refetchDeviceKey } = useScaffoldReadContract({
+    contractName: "Stride",
+    functionName: "deviceKey",
+    args: [connectedAddress],
+  });
+
+  const { writeContractAsync: registerDeviceKey, isPending: isRegistering } = useScaffoldWriteContract({
+    contractName: "Stride",
+  });
+
+  const isRegisteredOnChain =
+    !!registeredKeyOnChain &&
+    !!sessionKeyAddress &&
+    registeredKeyOnChain.toLowerCase() === sessionKeyAddress.toLowerCase();
+
+  const handleRegisterDeviceKey = async () => {
+    if (!sessionKeyAddress) return;
+    try {
+      await registerDeviceKey({
+        functionName: "registerDeviceKey",
+        args: [sessionKeyAddress as `0x${string}`],
+      });
+      notification.success("Device key registered onchain — your signed checkpoints can now be verified.");
+      refetchDeviceKey();
+    } catch {
+      // useScaffoldWriteContract already surfaces a parsed error notification on failure.
+    }
+  };
 
   const handleCopy = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -159,23 +201,50 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ profile, badges, runs, o
             <span className="text-lg">🛡️</span>
             <div>
               <div className="text-xs font-black text-white lowercase">security & gasless keys</div>
-              <div className="text-[10px] text-[#C7BEEA]/70">device session key active</div>
+              <div className="text-[10px] text-[#C7BEEA]/70">
+                {isConnected ? "device session key" : "connect a wallet to register"}
+              </div>
             </div>
           </div>
-          <span className="px-2.5 py-0.5 rounded-full bg-[#CCFF00]/20 text-[#CCFF00] text-[10px] font-bold border border-[#CCFF00]/40">
-            active ✓
-          </span>
+          {isConnected ? (
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                isRegisteredOnChain
+                  ? "bg-[#CCFF00]/20 text-[#CCFF00] border-[#CCFF00]/40"
+                  : "bg-white/10 text-[#C7BEEA]/70 border-white/20"
+              }`}
+            >
+              {isRegisteredOnChain ? "registered onchain ✓" : "not registered"}
+            </span>
+          ) : (
+            <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[#C7BEEA]/70 text-[10px] font-bold border border-white/20">
+              wallet not connected
+            </span>
+          )}
         </div>
 
         <p className="text-[11px] text-[#C7BEEA]/80 leading-relaxed font-medium">
           A disposable cryptographic session key signs your GPS & motion checkpoints in the background. No wallet
-          signatures or gas fees while you run. Raw private keys never leave your device.
+          signatures or gas fees while you run. Raw private keys never leave your device — only the public address below
+          gets registered onchain, once, so disputes can verify your signatures.
         </p>
 
         <div className="p-2.5 rounded-xl bg-black/40 border border-white/10 font-mono text-[10px] text-[#C7BEEA]/70 flex items-center justify-between">
-          <span>Key: {profile.deviceSessionKey}</span>
+          <span>Key: {sessionKeyAddress ? formatShortAddress(sessionKeyAddress) : "generating..."}</span>
           <span className="text-[#CCFF00] font-bold">EIP-712</span>
         </div>
+
+        {isConnected && !isRegisteredOnChain && (
+          <StrideButton
+            variant="neon"
+            size="sm"
+            fullWidth
+            disabled={isRegistering || !sessionKeyAddress}
+            onClick={handleRegisterDeviceKey}
+          >
+            {isRegistering ? "confirm in wallet..." : "register device key onchain 🔑"}
+          </StrideButton>
+        )}
       </div>
 
       {/* 5. APP SETTINGS & SENSORS */}

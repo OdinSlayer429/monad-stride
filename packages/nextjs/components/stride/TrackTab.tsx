@@ -49,7 +49,14 @@ export const TrackTab: React.FC<TrackTabProps> = ({ pools, preselectedPoolId, ru
         setShowGoalCelebration(true);
         setTimeout(() => setShowGoalCelebration(false), 4500);
       },
-      { runnerAddress: runnerAddress as `0x${string}` },
+      {
+        runnerAddress: runnerAddress as `0x${string}`,
+        // Baked into every checkpoint's signed payload, so it has to be decided before
+        // tracking starts, not after — a real dispute checks a checkpoint's own poolId
+        // field, so checkpoints signed for the wrong pool (or no pool) can never be
+        // validly submitted to a different one after the fact.
+        poolId: selectedPoolId ? Number(selectedPoolId) : undefined,
+      },
     );
 
     engineRef.current = engine;

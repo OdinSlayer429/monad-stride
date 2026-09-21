@@ -1,19 +1,36 @@
 import React, { useState } from "react";
-import { StarburstBadge, StatusPill } from "./StrideBadge";
+import { StatusPill } from "./StrideBadge";
 import { StrideButton } from "./StrideButton";
+import { parseEther, parseEventLogs } from "viem";
+import { useAccount, usePublicClient } from "wagmi";
+import deployedContracts from "~~/contracts/deployedContracts";
+import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { setPoolTitle } from "~~/services/stride/poolMeta";
 import { Pool, PoolStatus } from "~~/types/stride";
+import { notification } from "~~/utils/scaffold-eth";
+
+const CHAIN_ID = 10143;
+const STRIDE_ABI = deployedContracts[CHAIN_ID].Stride.abi;
+const ONE_DAY_SECONDS = 24 * 3600;
+const DISPUTE_WINDOW_SECONDS = 3600; // matches contract's MIN_DISPUTE_WINDOW floor exactly
 
 interface PoolsTabProps {
   pools: Pool[];
+  isLoading: boolean;
   onSelectPool: (pool: Pool) => void;
-  onCreatePool: (newPool: Omit<Pool, "id" | "participants" | "totalPot" | "status" | "inviteCode">) => void;
-  onJoinPool: (inviteCode: string) => boolean;
+  onPoolsChanged: () => void;
 }
 
-export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, onSelectPool, onCreatePool, onJoinPool }) => {
+export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, isLoading, onSelectPool, onPoolsChanged }) => {
   const [filter, setFilter] = useState<PoolStatus | "all">("all");
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [showJoinModal, setShowJoinModal] = useState<boolean>(false);
+  const [creating, setCreating] = useState<boolean>(false);
+  const [joining, setJoining] = useState<boolean>(false);
+
+  const { isConnected } = useAccount();
+  const publicClient = usePublicClient({ chainId: CHAIN_ID });
+  const { writeContractAsync } = useScaffoldWriteContract({ contractName: "Stride" });
 
   // Form states for Create Pool
   const [title, setTitle] = useState<string>("Weekend 5K Run");
@@ -30,37 +47,77 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, onSelectPool, onCreat
     return p.status === filter;
   });
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const goalMeters = Math.round((parseFloat(goalKm) || 5) * 1000);
-    const stake = `${parseFloat(stakeMON) || 0.5} MON`;
-    const days = parseInt(durationDays) || 3;
+    if (!isConnected) {
+      notification.error("Connect a wallet first.");
+      return;
+    }
 
-    onCreatePool({
-      title: `⚡ ${title}`,
-      creator: "0xCurrentUser",
-      creatorName: "You",
-      stakeAmount: stake,
-      goalDistanceMeters: goalMeters,
-      joinDeadline: Date.now() + 3600 * 1000 * 24, // 24 hours to join
-      activityDeadline: Date.now() + 3600 * 1000 * 24 * days,
-      disputeWindowSeconds: 3600,
-    });
+    setCreating(true);
+    try {
+      const goalMeters = BigInt(Math.round((parseFloat(goalKm) || 5) * 1000));
+      const stakeWei = parseEther(String(parseFloat(stakeMON) || 0.5));
+      const days = parseInt(durationDays) || 3;
+      const nowSeconds = BigInt(Math.floor(Date.now() / 1000));
+      const joinDeadline = nowSeconds + BigInt(ONE_DAY_SECONDS);
+      const activityDeadline = joinDeadline + BigInt(days * ONE_DAY_SECONDS);
+      const disputeWindow = BigInt(DISPUTE_WINDOW_SECONDS);
 
-    setShowCreateModal(false);
+      const hash = await writeContractAsync({
+        functionName: "createPool",
+        args: [goalMeters, stakeWei, joinDeadline, activityDeadline, disputeWindow],
+      });
+
+      if (hash && publicClient) {
+        const receipt = await publicClient.getTransactionReceipt({ hash });
+        const [created] = parseEventLogs({ abi: STRIDE_ABI, eventName: "PoolCreated", logs: receipt.logs });
+        const poolId = created?.args?.poolId;
+        if (poolId !== undefined) {
+          setPoolTitle(poolId.toString(), title.trim() || `pool #${poolId.toString()}`);
+        }
+      }
+
+      notification.success("Pool created onchain — stake it out!");
+      setShowCreateModal(false);
+      onPoolsChanged();
+    } catch {
+      // useScaffoldWriteContract already surfaces a parsed error notification on failure.
+    } finally {
+      setCreating(false);
+    }
   };
 
-  const handleJoinSubmit = (e: React.FormEvent) => {
+  const handleJoinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!joinCodeInput.trim()) return;
+    const poolIdStr = joinCodeInput.trim();
+    const pool = pools.find(p => p.id === poolIdStr);
+    if (!pool) {
+      setJoinError("Pool ID not found. Ask the creator for their pool ID.");
+      return;
+    }
+    if (!isConnected) {
+      notification.error("Connect a wallet first.");
+      return;
+    }
 
-    const success = onJoinPool(joinCodeInput.trim());
-    if (success) {
+    setJoining(true);
+    try {
+      await writeContractAsync({
+        functionName: "joinPool",
+        args: [BigInt(poolIdStr)],
+        value: pool.stakeAmountWei ?? parseEther(pool.stakeAmount.split(" ")[0]),
+      });
+
+      notification.success("Joined pool — stake deposited onchain!");
       setShowJoinModal(false);
       setJoinCodeInput("");
       setJoinError("");
-    } else {
-      setJoinError("Pool code not found or already joined.");
+      onPoolsChanged();
+    } catch {
+      // useScaffoldWriteContract already surfaces a parsed error notification on failure.
+    } finally {
+      setJoining(false);
     }
   };
 
@@ -88,7 +145,7 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, onSelectPool, onCreat
 
       {/* Filter Tabs */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-[#1C1440] border border-white/5 overflow-x-auto">
-        {(["all", "active", "open", "resolved"] as const).map(f => (
+        {(["all", "open", "active", "awaiting_results", "resolved"] as const).map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -98,15 +155,27 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, onSelectPool, onCreat
                 : "text-[#C7BEEA]/60 hover:text-white"
             }`}
           >
-            {f}
+            {f.replace("_", " ")}
           </button>
         ))}
       </div>
 
       {/* Pools List */}
+      {isLoading && pools.length === 0 && (
+        <div className="glass-card p-6 text-center text-xs text-[#C7BEEA]/60 font-bold">
+          reading pools from the Stride contract...
+        </div>
+      )}
+
+      {!isLoading && filteredPools.length === 0 && (
+        <div className="glass-card p-6 text-center text-xs text-[#C7BEEA]/60 font-bold">
+          no pools yet — create one to get friends staking.
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
         {filteredPools.map(pool => {
-          const hasHitGoal = pool.participants.some(p => p.name.includes("You") && p.status === "hit_goal");
+          const hasHitGoal = pool.participants.some(p => p.name === "You" && p.status === "hit_goal");
 
           return (
             <div
@@ -120,8 +189,7 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, onSelectPool, onCreat
                     {pool.title}
                   </span>
                   <span className="text-xs text-[#C7BEEA]/70 font-medium mt-0.5">
-                    Created by {pool.creatorName} · Code:{" "}
-                    <span className="font-mono text-white">{pool.inviteCode}</span>
+                    Created by {pool.creatorName} · Pool ID: <span className="font-mono text-white">{pool.id}</span>
                   </span>
                 </div>
                 <StatusPill
@@ -180,7 +248,9 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, onSelectPool, onCreat
 
             <form onSubmit={handleCreateSubmit} className="flex flex-col gap-3">
               <div>
-                <label className="text-xs font-bold text-[#C7BEEA]/80 block lowercase mb-1">pool title</label>
+                <label className="text-xs font-bold text-[#C7BEEA]/80 block lowercase mb-1">
+                  pool title (local label only, not stored onchain)
+                </label>
                 <input
                   type="text"
                   value={title}
@@ -219,7 +289,7 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, onSelectPool, onCreat
 
               <div>
                 <label className="text-xs font-bold text-[#C7BEEA]/80 block lowercase mb-1">
-                  activity window (days)
+                  activity window (days, after a 24h join period)
                 </label>
                 <select
                   value={durationDays}
@@ -232,8 +302,8 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, onSelectPool, onCreat
                 </select>
               </div>
 
-              <StrideButton variant="neon" size="lg" fullWidth type="submit" className="mt-2">
-                create & deposit stake ↗
+              <StrideButton variant="neon" size="lg" fullWidth type="submit" className="mt-2" disabled={creating}>
+                {creating ? "confirm in wallet..." : "create & deposit stake ↗"}
               </StrideButton>
             </form>
           </div>
@@ -245,7 +315,7 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, onSelectPool, onCreat
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
           <div className="w-full max-w-sm bg-[#110F0B] border-2 border-[#362A5E] rounded-3xl p-6 flex flex-col gap-4 shadow-[0_20px_60px_rgba(0,0,0,0.9)]">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-black text-white lowercase">join via code / link</h3>
+              <h3 className="text-xl font-black text-white lowercase">join by pool id</h3>
               <button onClick={() => setShowJoinModal(false)} className="text-white/60 hover:text-white">
                 ✕
               </button>
@@ -253,29 +323,28 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, onSelectPool, onCreat
 
             <form onSubmit={handleJoinSubmit} className="flex flex-col gap-3">
               <div>
-                <label className="text-xs font-bold text-[#C7BEEA]/80 block lowercase mb-1">
-                  invite code or shared link
-                </label>
+                <label className="text-xs font-bold text-[#C7BEEA]/80 block lowercase mb-1">pool id</label>
                 <input
                   type="text"
+                  inputMode="numeric"
                   value={joinCodeInput}
                   onChange={e => {
-                    setJoinCodeInput(e.target.value.toUpperCase());
+                    setJoinCodeInput(e.target.value.replace(/[^0-9]/g, ""));
                     setJoinError("");
                   }}
-                  className="w-full p-3 rounded-xl bg-[#201B14] border border-white/10 text-white text-sm font-mono font-black uppercase tracking-wider focus:border-[#CCFF00] outline-none"
-                  placeholder="e.g. MON5K or CLIMB10"
+                  className="w-full p-3 rounded-xl bg-[#201B14] border border-white/10 text-white text-sm font-mono font-black tracking-wider focus:border-[#CCFF00] outline-none"
+                  placeholder="e.g. 0, 1, 2..."
                   required
                 />
                 {joinError && <p className="text-[11px] text-rose-400 mt-1">{joinError}</p>}
               </div>
 
               <p className="text-[11px] text-[#C7BEEA]/60">
-                Joining will deposit the required stake amount into the pool pot.
+                Joining sends the pool&apos;s exact stake amount onchain, straight from your wallet.
               </p>
 
-              <StrideButton variant="neon" size="lg" fullWidth type="submit" className="mt-2">
-                join pool & stake 🏃
+              <StrideButton variant="neon" size="lg" fullWidth type="submit" className="mt-2" disabled={joining}>
+                {joining ? "confirm in wallet..." : "join pool & stake 🏃"}
               </StrideButton>
             </form>
           </div>
