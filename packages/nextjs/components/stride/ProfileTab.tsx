@@ -2,23 +2,30 @@ import React, { useEffect, useState } from "react";
 import { StarburstBadge } from "./StrideBadge";
 import { StrideButton } from "./StrideButton";
 import { FloatingChips } from "./landing/FloatingChips";
+import { formatEther } from "viem";
 import { useAccount } from "wagmi";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 import { getSessionKeyAddress } from "~~/services/stride/sessionKey";
-import { TrophyBadge, UserProfile, UserRun } from "~~/types/stride";
+import { Pool, TrophyBadge, UserProfile, UserRun } from "~~/types/stride";
 import { notification } from "~~/utils/scaffold-eth";
 
 interface ProfileTabProps {
   profile: UserProfile;
   badges: TrophyBadge[];
   runs: UserRun[];
-  onClaimAll: () => void;
+  pools: Pool[];
+  onPoolsChanged: () => void;
 }
 
-export const ProfileTab: React.FC<ProfileTabProps> = ({ profile, badges, runs, onClaimAll }) => {
+export const ProfileTab: React.FC<ProfileTabProps> = ({ profile, badges, runs, pools, onPoolsChanged }) => {
   const [copiedAddr, setCopiedAddr] = useState<boolean>(false);
   const [claiming, setClaiming] = useState<boolean>(false);
   const [sessionKeyAddress, setSessionKeyAddress] = useState<string | null>(null);
+
+  const { writeContractAsync: withdrawFromPool } = useScaffoldWriteContract({ contractName: "Stride" });
+  const claimablePools = pools.filter(p => (p.claimableWei ?? 0n) > 0n);
+  const totalClaimableWei = claimablePools.reduce((sum, p) => sum + (p.claimableWei ?? 0n), 0n);
+  const totalClaimableDisplay = `${formatEther(totalClaimableWei)} MON`;
 
   const { address: connectedAddress, isConnected } = useAccount();
 
@@ -66,12 +73,25 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ profile, badges, runs, o
     }
   };
 
-  const handleClaim = () => {
+  // The contract has no "claim everything at once" function — claimable is tracked
+  // per pool — so this withdraws from every pool with a nonzero balance, one real
+  // transaction each, same pattern as PostRunModal's "submit to all" pools.
+  const handleClaim = async () => {
     setClaiming(true);
-    setTimeout(() => {
+    try {
+      for (const pool of claimablePools) {
+        const hash = await withdrawFromPool({
+          functionName: "withdraw",
+          args: [BigInt(pool.id)],
+        });
+        if (hash) {
+          notification.success(`Withdrew ${formatEther(pool.claimableWei ?? 0n)} MON from ${pool.title}!`);
+        }
+      }
+      onPoolsChanged();
+    } finally {
       setClaiming(false);
-      onClaimAll();
-    }, 700);
+    }
   };
 
   const formatShortAddress = (addr: string) => {
@@ -117,14 +137,14 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ profile, badges, runs, o
               claimable pot winnings
             </span>
             <span className="text-xl font-black text-[#CCFF00] font-mono leading-none mt-0.5">
-              {profile.claimableMON}
+              {totalClaimableDisplay}
             </span>
           </div>
 
           <StrideButton
             variant="neon"
             size="sm"
-            disabled={claiming || profile.claimableMON === "0.00 MON"}
+            disabled={claiming || claimablePools.length === 0}
             onClick={handleClaim}
           >
             {claiming ? "claiming..." : "claim 💰"}

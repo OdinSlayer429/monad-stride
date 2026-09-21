@@ -67,10 +67,15 @@ export function useStridePools() {
             p.participants.map(async addr => {
               // submissions(poolId, addr) returns a labeled tuple, not an object —
               // [status, commitHash, distanceMeters, durationSeconds, checkpointCount, ipfsCID, submittedAt, signingKey]
-              const [subStatus, , subDistanceMeters, subDurationSeconds] = await stride.read.submissions([
-                poolId,
-                addr,
-              ]);
+              const [
+                subStatus,
+                commitHash,
+                subDistanceMeters,
+                subDurationSeconds,
+                checkpointCount,
+                ipfsCID,
+                submittedAt,
+              ] = await stride.read.submissions([poolId, addr]);
               const status = deriveParticipantStatus(subStatus, subDistanceMeters, p.goalDistanceMeters);
               const isYou = !!connectedAddress && addr.toLowerCase() === connectedAddress.toLowerCase();
               return {
@@ -81,6 +86,21 @@ export function useStridePools() {
                 distanceMeters: Number(subDistanceMeters),
                 durationSeconds: Number(subDurationSeconds),
                 isDisputed: status === "slashed",
+                // Only real once subStatus !== None (0) — a real submission exists to
+                // dispute. checkpoints stays empty here (fetched on-demand from IPFS
+                // only when a disputer actually opens the inspector, not on every poll).
+                submission:
+                  subStatus === 0
+                    ? undefined
+                    : {
+                        commitHash,
+                        distanceMeters: Number(subDistanceMeters),
+                        durationSeconds: Number(subDurationSeconds),
+                        checkpointCount: Number(checkpointCount),
+                        checkpoints: [],
+                        ipfsCID,
+                        submittedAt: Number(submittedAt) * 1000,
+                      },
               };
             }),
           );
@@ -91,6 +111,8 @@ export function useStridePools() {
           const disputeWindowEndMs = activityDeadlineMs + Number(p.disputeWindow) * 1000;
           const idStr = poolId.toString();
           const isCreatorYou = !!connectedAddress && p.creator.toLowerCase() === connectedAddress.toLowerCase();
+
+          const claimableWei = connectedAddress ? await stride.read.claimable([poolId, connectedAddress]) : 0n;
 
           const pool: Pool = {
             id: idStr,
@@ -108,6 +130,7 @@ export function useStridePools() {
             inviteCode: idStr,
             totalPot: `${formatEther(p.stakeAmount * BigInt(participants.length))} MON`,
             finalized: p.finalized,
+            claimableWei,
           };
           return pool;
         }),

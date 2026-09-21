@@ -1,32 +1,47 @@
 import React, { useState } from "react";
 import { StarburstBadge } from "./StrideBadge";
 import { StrideButton } from "./StrideButton";
+import { formatEther } from "viem";
+import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 import { Pool } from "~~/types/stride";
+import { notification } from "~~/utils/scaffold-eth";
 
 interface ResultsModalProps {
   pool: Pool | null;
-  claimableAmount: string;
   isOpen: boolean;
   onClose: () => void;
-  onClaim: () => void;
+  onClaimed: () => void;
 }
 
-export const ResultsModal: React.FC<ResultsModalProps> = ({ pool, claimableAmount, isOpen, onClose, onClaim }) => {
-  const [claimed, setClaimed] = useState<boolean>(false);
+export const ResultsModal: React.FC<ResultsModalProps> = ({ pool, isOpen, onClose, onClaimed }) => {
   const [claiming, setClaiming] = useState<boolean>(false);
+
+  const { writeContractAsync } = useScaffoldWriteContract({ contractName: "Stride" });
 
   if (!isOpen || !pool) return null;
 
   const winners = pool.participants.filter(p => p.status === "hit_goal");
   const losers = pool.participants.filter(p => p.status === "didnt_submit" || p.status === "slashed");
+  const claimableWei = pool.claimableWei ?? 0n;
+  const claimableDisplay = `${formatEther(claimableWei)} MON`;
 
-  const handleClaimWinnings = () => {
+  // Real pull-payment withdraw — finalize() (see PoolDetailModal) already computed
+  // this address's claimable balance; this just pulls it to the connected wallet.
+  const handleClaimWinnings = async () => {
     setClaiming(true);
-    setTimeout(() => {
+    try {
+      const hash = await writeContractAsync({
+        functionName: "withdraw",
+        args: [BigInt(pool.id)],
+      });
+      if (!hash) return;
+      notification.success(`Withdrawn ${claimableDisplay} to your wallet!`);
+      onClaimed();
+    } catch {
+      // useScaffoldWriteContract already surfaces a parsed error notification on failure.
+    } finally {
       setClaiming(false);
-      setClaimed(true);
-      onClaim();
-    }, 800);
+    }
   };
 
   return (
@@ -57,10 +72,10 @@ export const ResultsModal: React.FC<ResultsModalProps> = ({ pool, claimableAmoun
           <div className="flex flex-col">
             <span className="text-[10px] uppercase font-bold text-[#C7BEEA]/70 tracking-wider">your winnings</span>
             <span className="text-4xl font-black text-[#CCFF00] font-mono tracking-tight leading-none mt-1">
-              +{pool.payoutPerWinner || "0.5 MON"}
+              {claimableDisplay}
             </span>
             <span className="text-[11px] text-[#C7BEEA]/80 font-bold mt-1 lowercase">
-              available to withdraw to wallet
+              {claimableWei > 0n ? "available to withdraw to wallet" : "nothing claimable on this pool"}
             </span>
           </div>
 
@@ -74,7 +89,6 @@ export const ResultsModal: React.FC<ResultsModalProps> = ({ pool, claimableAmoun
           <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex flex-col gap-2 text-xs">
             <div className="flex items-center justify-between font-bold text-[#CCFF00]">
               <span>🏅 Goal Finishers ({winners.length}):</span>
-              <span className="font-mono">+{pool.payoutPerWinner} each</span>
             </div>
             <div className="flex flex-wrap gap-1">
               {winners.map((w, idx) => (
@@ -89,7 +103,6 @@ export const ResultsModal: React.FC<ResultsModalProps> = ({ pool, claimableAmoun
 
             <div className="pt-2 border-t border-white/10 flex items-center justify-between font-bold text-rose-300">
               <span>💤 Forfeited Stakes ({losers.length}):</span>
-              <span className="font-mono text-rose-400">-{pool.stakeAmount} each</span>
             </div>
           </div>
         </div>
@@ -100,14 +113,10 @@ export const ResultsModal: React.FC<ResultsModalProps> = ({ pool, claimableAmoun
             variant="neon"
             size="lg"
             fullWidth
-            disabled={claiming || claimed || claimableAmount === "0.00 MON"}
+            disabled={claiming || claimableWei === 0n}
             onClick={handleClaimWinnings}
           >
-            {claimed
-              ? "winnings claimed! ✓"
-              : claiming
-                ? "withdrawing from monad..."
-                : `claim ${claimableAmount || "+0.5 MON"} 💰`}
+            {claiming ? "withdrawing from monad..." : `claim ${claimableDisplay} 💰`}
           </StrideButton>
 
           <p className="text-center text-[10px] text-[#C7BEEA]/60">

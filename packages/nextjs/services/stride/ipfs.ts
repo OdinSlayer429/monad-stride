@@ -51,3 +51,31 @@ export async function pinCheckpoints(
     return null;
   }
 }
+
+const IPFS_GATEWAYS = ["https://gateway.pinata.cloud/ipfs/", "https://ipfs.io/ipfs/"];
+
+/**
+ * Fetches a pinned checkpoint chain back down from IPFS by CID — this is what lets
+ * anyone (not just the runner) inspect and potentially dispute a submission. Returns
+ * whatever was actually pinned, which is the TRIMMED public copy (see
+ * trimForPublicPin above) — missing the first/last ~10% of the real chain. That's fine
+ * for `dispute()` (checks one adjacent pair; plenty of real middle-of-run pairs remain)
+ * but means `disputeAggregateDistance()` can never be run against this data — it
+ * requires the exact original chain length and a prevHash chain ending at the
+ * onchain commitHash, which the trim structurally breaks. Returns null if no CID, the
+ * gateways are unreachable, or the payload doesn't parse.
+ */
+export async function fetchCheckpoints(cid: string): Promise<Checkpoint[] | null> {
+  if (!cid) return null;
+  for (const gateway of IPFS_GATEWAYS) {
+    try {
+      const res = await fetch(`${gateway}${cid}`);
+      if (!res.ok) continue;
+      const data = (await res.json()) as { checkpoints?: Checkpoint[] };
+      if (Array.isArray(data.checkpoints)) return data.checkpoints;
+    } catch {
+      // try the next gateway
+    }
+  }
+  return null;
+}

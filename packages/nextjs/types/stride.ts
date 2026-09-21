@@ -64,6 +64,9 @@ export interface Pool {
   winnerCount?: number;
   payoutPerWinner?: string;
   finalized?: boolean;
+  /** Real `claimable(poolId, connectedAddress)` balance, in wei — only meaningful once
+   * `finalized` is true. 0n if not connected or nothing to claim. */
+  claimableWei?: bigint;
 }
 
 /** One pool's own independently signed checkpoint chain for a single run — a runner

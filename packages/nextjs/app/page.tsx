@@ -104,33 +104,11 @@ const Home: NextPage = () => {
     setCurrentTab("home");
   };
 
-  // Anti-Cheat "Spot the fake" Dispute Handler
-  // NOTE: still driven by mock `suspiciousPattern` data, which real pools
-  // (read live from the contract) never populate — real dispute() wiring,
-  // which needs a runner's actual signed checkpoint chain, is a separate,
-  // not-yet-queued step. Left in place so this doesn't error for old local
-  // run history; it's effectively dormant against real pools.
-  const handleDispute = (poolId: string, suspectAddress: string) => {
-    const res = StrideStorage.disputeParticipant(poolId, suspectAddress, profile.address);
-    if (res.success) {
-      refetchPools();
-      setProfile(StrideStorage.getProfile());
-      setBadges(StrideStorage.getBadges());
-      toast.success(`Dispute verified onchain! Cheater slashed. Bounty ${res.bounty} added to claimable balance!`, {
-        icon: "🕵️",
-        duration: 4000,
-      });
-    }
-  };
-
-  // Claim Winnings Handler
-  const handleClaimWinnings = () => {
-    const claimed = StrideStorage.claimAllWinnings();
-    setProfile(StrideStorage.getProfile());
-    toast.success(`Claimed ${claimed} to wallet! Monad pull-payment completed.`, { icon: "💸" });
-    if (selectedPoolForResults) {
-      setSelectedPoolForResults(null);
-    }
+  // Called by ResultsModal AFTER a real withdraw() transaction has already confirmed
+  // onchain — just closes the modal and refreshes pool state (claimable now back to 0).
+  const handleClaimed = () => {
+    refetchPools();
+    setSelectedPoolForResults(null);
   };
 
   // --------------------------------------------------------------------------
@@ -198,7 +176,7 @@ const Home: NextPage = () => {
           )}
 
           {currentTab === "profile" && (
-            <ProfileTab profile={profile} badges={badges} runs={runs} onClaimAll={handleClaimWinnings} />
+            <ProfileTab profile={profile} badges={badges} runs={runs} pools={pools} onPoolsChanged={refetchPools} />
           )}
         </main>
 
@@ -224,12 +202,12 @@ const Home: NextPage = () => {
         onPoolsChanged={refetchPools}
       />
 
-      {/* 4. Pool Detail & "Spot the fake" Dispute Inspector */}
+      {/* 4. Pool Detail & Real Dispute Inspector */}
       <PoolDetailModal
         pool={selectedPoolForDetail}
         isOpen={!!selectedPoolForDetail}
         onClose={() => setSelectedPoolForDetail(null)}
-        onDispute={handleDispute}
+        onPoolsChanged={refetchPools}
         onViewResults={pool => {
           setSelectedPoolForDetail(null);
           setSelectedPoolForResults(pool);
@@ -243,10 +221,9 @@ const Home: NextPage = () => {
       {/* 5. Results & Claim Winnings */}
       <ResultsModal
         pool={selectedPoolForResults}
-        claimableAmount={profile.claimableMON}
         isOpen={!!selectedPoolForResults}
         onClose={() => setSelectedPoolForResults(null)}
-        onClaim={handleClaimWinnings}
+        onClaimed={handleClaimed}
       />
     </div>
   );
