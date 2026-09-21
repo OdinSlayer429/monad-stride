@@ -12,7 +12,10 @@ export interface LiveRunState {
   currentCadenceSpm: number;
   currentCoord: [number, number];
   coordinates: [number, number][];
-  checkpoints: Checkpoint[];
+  /** One independently signed checkpoint chain per pool the runner is tracking this
+   * run for — every real step counts toward every joined pool at once, not just one
+   * picked pool, so each pool needs its own chain (poolId is part of what's signed). */
+  checkpointsByPool: Record<number, Checkpoint[]>;
   targetGoalMeters?: number;
   hasReachedGoal: boolean;
   ghostDeltaMeters: number; // positive = ahead of ghost, negative = behind
@@ -55,11 +58,27 @@ const CHECKPOINT_TYPES = {
 // (desktop testing, or the explicit "simulation" toggle) — everything downstream of a
 // position (distance, checkpoints, hashing, signing) is identical either way, so a
 // simulated run still produces a genuinely real, verifiable signed checkpoint chain.
+//
+// Tuned to a real ~3.4 m/s recreational jogging pace (~4:50/km) around a ~120m-radius
+// loop. Two real bugs fixed here (found via a real-wallet verification run that
+// reported "0.4km covered in a second" while stationary): (1) the previous version's
+// angle/radius math produced a genuine ~110+ km/h pace, not a jog — pure magic-number
+// miscalibration; (2) the very first simulated tick jumped straight to a point already
+// offset by the full loop radius from the declared start position (the parametrization
+// didn't actually pass through (startLat, startLng) at elapsedSeconds=0), creating a
+// one-time ~400m+ teleport before the loop math even started. Both are why one quick
+// glance at the numbers looked like the whole simulator was fake/broken rather than
+// just needing better constants — it very much was producing real (if wrong) segment
+// distances the whole time, not a display bug.
+const SIM_ANGULAR_VELOCITY = 0.025; // rad/s — one lap roughly every 4.2 minutes
+const SIM_RADIUS_METERS = 120;
 function simulatedPosition(elapsedSeconds: number, startLat: number, startLng: number): [number, number] {
-  const angle = (elapsedSeconds * 0.05) % (Math.PI * 2);
-  const radius = 0.003;
-  const lat = startLat + Math.sin(angle) * radius + elapsedSeconds * 0.00002;
-  const lng = startLng + Math.cos(angle) * (radius * 1.3);
+  const radiusDeg = SIM_RADIUS_METERS / METERS_PER_DEGREE;
+  const angle = (elapsedSeconds * SIM_ANGULAR_VELOCITY) % (Math.PI * 2);
+  // -1 / cos(0) terms below anchor the path so position(0) === (startLat, startLng)
+  // exactly, instead of starting already offset by a full radius (the earlier bug).
+  const lat = startLat + Math.sin(angle) * radiusDeg;
+  const lng = startLng + (Math.cos(angle) - 1) * (radiusDeg * 1.3);
   return [lat, lng];
 }
 
@@ -70,7 +89,7 @@ export class GPSEngine {
   private onUpdate: (state: LiveRunState) => void;
   private onGoalReached?: () => void;
   private runnerAddress: Address;
-  private poolId: number;
+  private poolIds: number[];
 
   private useSimulation = true;
   private startLat = 37.7749;
@@ -86,13 +105,13 @@ export class GPSEngine {
   private realMotionEventCount = 0;
   private motionListener?: (e: DeviceMotionEvent) => void;
 
-  private digestByIndex = new Map<number, Hex>();
+  private digestByIndexByPool = new Map<number, Map<number, Hex>>();
   private checkpointInFlight = false;
 
   constructor(
     onUpdate: (state: LiveRunState) => void,
     onGoalReached: (() => void) | undefined,
-    options: { runnerAddress: Address; poolId?: number },
+    options: { runnerAddress: Address; poolIds?: number[] },
   ) {
     this.onUpdate = onUpdate;
     this.onGoalReached = onGoalReached;
@@ -100,7 +119,7 @@ export class GPSEngine {
     // addresses elsewhere in the app aren't always checksummed, and viem's typed-data
     // signer rejects an `address` field that fails checksum validation outright.
     this.runnerAddress = getAddress(options.runnerAddress);
-    this.poolId = options.poolId ?? 1;
+    this.poolIds = options.poolIds ?? [];
     this.state = this.getInitialState();
   }
 
@@ -114,7 +133,7 @@ export class GPSEngine {
       currentCadenceSpm: 0,
       currentCoord: [this.startLat, this.startLng],
       coordinates: [[this.startLat, this.startLng]],
-      checkpoints: [],
+      checkpointsByPool: Object.fromEntries(this.poolIds.map(id => [id, []])),
       hasReachedGoal: false,
       ghostDeltaMeters: 0,
       usingRealGps: false,
@@ -126,7 +145,7 @@ export class GPSEngine {
     this.useSimulation = useSimulation;
     this.stepTimestamps = [];
     this.realMotionEventCount = 0;
-    this.digestByIndex.clear();
+    this.digestByIndexByPool.clear();
     this.state = {
       ...this.getInitialState(),
       isActive: true,
@@ -290,50 +309,17 @@ export class GPSEngine {
   }
 
   /** Builds, hashes (matching Stride.sol's hashCheckpoint exactly), and signs one
-   * checkpoint with the device session key — genuinely verifiable, not a placeholder. */
+   * checkpoint — for EVERY pool this run is tracking, in parallel, off the same real
+   * (lat, lng, cadence) reading. Each pool gets its own independently indexed,
+   * independently hash-chained hex — genuinely verifiable per pool, not a placeholder,
+   * and not just one chain reused across pools (a checkpoint's poolId is part of what
+   * gets signed, so a chain for pool A can never masquerade as proof for pool B). */
   private async createCheckpoint(lat: number, lng: number) {
-    if (this.checkpointInFlight) return;
+    if (this.checkpointInFlight || this.poolIds.length === 0) return;
     this.checkpointInFlight = true;
     try {
       const account = getSessionAccount();
-      const index = this.state.checkpoints.length;
-      const prevDigest = index > 0 ? (this.digestByIndex.get(index - 1) ?? zeroHash) : zeroHash;
-
-      const message = {
-        poolId: BigInt(this.poolId),
-        runner: this.runnerAddress,
-        index,
-        timestamp: BigInt(Math.floor(Date.now() / 1000)),
-        lat: Math.round(lat * 1e6),
-        lng: Math.round(lng * 1e6),
-        cadenceSpm: this.state.currentCadenceSpm,
-        prevHash: prevDigest,
-      };
-
-      const typedData = {
-        domain: CHECKPOINT_DOMAIN,
-        types: CHECKPOINT_TYPES,
-        primaryType: "Checkpoint" as const,
-        message,
-      };
-
-      const digest = hashTypedData(typedData);
-      const signature = await account.signTypedData(typedData);
-
-      this.digestByIndex.set(index, digest);
-      const checkpoint: Checkpoint = {
-        poolId: this.poolId,
-        runner: this.runnerAddress,
-        index,
-        timestamp: Number(message.timestamp),
-        lat: message.lat,
-        lng: message.lng,
-        cadenceSpm: message.cadenceSpm,
-        prevHash: prevDigest,
-        signature,
-        digest,
-      };
-      this.state.checkpoints.push(checkpoint);
+      await Promise.all(this.poolIds.map(poolId => this.signCheckpointForPool(poolId, lat, lng, account)));
       this.onUpdate({ ...this.state });
     } catch (err) {
       // A signing/hashing failure shouldn't crash the whole run — log it and just skip
@@ -342,6 +328,58 @@ export class GPSEngine {
     } finally {
       this.checkpointInFlight = false;
     }
+  }
+
+  private async signCheckpointForPool(
+    poolId: number,
+    lat: number,
+    lng: number,
+    account: ReturnType<typeof getSessionAccount>,
+  ) {
+    const existing = this.state.checkpointsByPool[poolId] ?? [];
+    const index = existing.length;
+    let prevMap = this.digestByIndexByPool.get(poolId);
+    if (!prevMap) {
+      prevMap = new Map<number, Hex>();
+      this.digestByIndexByPool.set(poolId, prevMap);
+    }
+    const prevDigest = index > 0 ? (prevMap.get(index - 1) ?? zeroHash) : zeroHash;
+
+    const message = {
+      poolId: BigInt(poolId),
+      runner: this.runnerAddress,
+      index,
+      timestamp: BigInt(Math.floor(Date.now() / 1000)),
+      lat: Math.round(lat * 1e6),
+      lng: Math.round(lng * 1e6),
+      cadenceSpm: this.state.currentCadenceSpm,
+      prevHash: prevDigest,
+    };
+
+    const typedData = {
+      domain: CHECKPOINT_DOMAIN,
+      types: CHECKPOINT_TYPES,
+      primaryType: "Checkpoint" as const,
+      message,
+    };
+
+    const digest = hashTypedData(typedData);
+    const signature = await account.signTypedData(typedData);
+
+    prevMap.set(index, digest);
+    const checkpoint: Checkpoint = {
+      poolId,
+      runner: this.runnerAddress,
+      index,
+      timestamp: Number(message.timestamp),
+      lat: message.lat,
+      lng: message.lng,
+      cadenceSpm: message.cadenceSpm,
+      prevHash: prevDigest,
+      signature,
+      digest,
+    };
+    this.state.checkpointsByPool[poolId] = [...existing, checkpoint];
   }
 }
 

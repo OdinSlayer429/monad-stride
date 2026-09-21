@@ -1,25 +1,23 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { StarburstBadge } from "./StrideBadge";
 import { StrideButton } from "./StrideButton";
 import { useAccount } from "wagmi";
 import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 import { pinCheckpoints } from "~~/services/stride/ipfs";
-import { Pool, UserRun } from "~~/types/stride";
+import { PoolLink, UserRun } from "~~/types/stride";
 import { notification } from "~~/utils/scaffold-eth";
 
 interface PostRunModalProps {
   run: UserRun | null;
-  pools: Pool[];
   isOpen: boolean;
   onClose: () => void;
-  onSubmitted: (run: UserRun, poolId: string) => void;
+  onSubmitted: (run: UserRun) => void;
   onSaveSolo: (run: UserRun) => void;
   onPoolsChanged: () => void;
 }
 
 export const PostRunModal: React.FC<PostRunModalProps> = ({
   run,
-  pools,
   isOpen,
   onClose,
   onSubmitted,
@@ -27,66 +25,95 @@ export const PostRunModal: React.FC<PostRunModalProps> = ({
   onPoolsChanged,
 }) => {
   const [copiedShare, setCopiedShare] = useState<boolean>(false);
-  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set());
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [submittingAll, setSubmittingAll] = useState<boolean>(false);
+  const notifiedDoneRef = useRef(false);
 
   const { isConnected, address: connectedAddress } = useAccount();
   const { writeContractAsync } = useScaffoldWriteContract({ contractName: "Stride" });
 
+  // Reset per-run submission tracking whenever a genuinely new run comes in.
+  useEffect(() => {
+    setSubmittedIds(new Set());
+    notifiedDoneRef.current = false;
+  }, [run?.id]);
+
+  // Once every linked pool has a confirmed submission, hand the finished run back up
+  // exactly once — has to be an effect, not a render-time call, since onSubmitted
+  // triggers parent state updates (saving to local history, switching tabs).
+  useEffect(() => {
+    if (!run || notifiedDoneRef.current) return;
+    const allSubmitted = run.poolLinks.length > 0 && run.poolLinks.every(l => submittedIds.has(l.poolId));
+    if (!allSubmitted) return;
+    notifiedDoneRef.current = true;
+    onSubmitted({
+      ...run,
+      poolLinks: run.poolLinks.map(l => ({ ...l, submitted: true })),
+      submittedToPool: true,
+    });
+  }, [run, submittedIds, onSubmitted]);
+
   if (!isOpen || !run) return null;
 
-  // Checkpoints are signed with a specific poolId baked in from the moment tracking
-  // started (see TrackTab's handleStartRun) — a run can only ever be submitted to
-  // whichever pool (if any) was actually linked before the run, not picked after the
-  // fact, since a real dispute checks a checkpoint's own poolId field against the pool
-  // it was submitted to.
-  const linkedPool = run.poolId ? pools.find(p => p.id === run.poolId) : undefined;
-
-  const handlePoolSubmit = async () => {
-    if (!linkedPool) return;
+  // Every pool this run was linked to (see TrackTab — all pools the runner had
+  // joined at start, no picking) gets its own real submitActivity call, since each
+  // has its own independently signed checkpoint chain and its own submission record.
+  const handleSubmitOne = async (link: PoolLink) => {
     if (!isConnected) {
       notification.error("Connect a wallet first.");
       return;
     }
-    const lastCheckpoint = run.checkpoints[run.checkpoints.length - 1];
-    if (!lastCheckpoint?.digest || run.checkpoints.length === 0) {
-      notification.error("No signed checkpoints on this run — nothing to submit onchain.");
+    const lastCheckpoint = link.checkpoints[link.checkpoints.length - 1];
+    if (!lastCheckpoint?.digest || link.checkpoints.length === 0) {
+      notification.error(`No signed checkpoints for ${link.poolTitle} — nothing to submit.`);
       return;
     }
 
-    setSubmitting(true);
+    setSubmittingId(link.poolId);
     try {
       // Best-effort — a dispute checks the onchain commitHash/signatures below, never
       // ipfsCID, so a failed/unconfigured pin (e.g. no Pinata key set up yet) falls
       // back to an empty CID rather than blocking the real submission.
-      const cid = await pinCheckpoints(
-        linkedPool.id,
-        connectedAddress ?? run.checkpoints[0]?.runner ?? "",
-        run.checkpoints,
-      );
+      const cid = await pinCheckpoints(link.poolId, connectedAddress ?? lastCheckpoint.runner, link.checkpoints);
       if (!cid) {
-        notification.info("IPFS pinning isn't set up yet — submitting without a CID (doesn't affect disputes).");
+        notification.info(`IPFS pinning isn't set up yet — submitting ${link.poolTitle} without a CID.`);
       }
 
-      await writeContractAsync({
+      const hash = await writeContractAsync({
         functionName: "submitActivity",
         args: [
-          BigInt(linkedPool.id),
+          BigInt(link.poolId),
           lastCheckpoint.digest as `0x${string}`,
           BigInt(Math.round(run.distanceMeters)),
           BigInt(Math.round(run.durationSeconds)),
-          run.checkpoints.length,
+          link.checkpoints.length,
           cid ?? "",
         ],
       });
+      // writeContractAsync can resolve to undefined without throwing (wrong network,
+      // contract briefly not resolved yet, wallet not connected) — useScaffoldWriteContract
+      // already shows its own error notification for those cases, but doesn't throw, so
+      // this check is required or a real failure silently gets reported as a success.
+      if (!hash) return;
 
-      notification.success("Activity submitted onchain — claimable if you hit the goal!");
+      notification.success(`Submitted to ${link.poolTitle} — claimable if you hit the goal!`);
+      setSubmittedIds(prev => new Set(prev).add(link.poolId));
       onPoolsChanged();
-      onSubmitted(run, linkedPool.id);
     } catch {
       // useScaffoldWriteContract already surfaces a parsed error notification on failure.
     } finally {
-      setSubmitting(false);
+      setSubmittingId(null);
     }
+  };
+
+  const handleSubmitAll = async () => {
+    setSubmittingAll(true);
+    for (const link of run.poolLinks) {
+      if (submittedIds.has(link.poolId)) continue;
+      await handleSubmitOne(link);
+    }
+    setSubmittingAll(false);
   };
 
   const handleShareCard = () => {
@@ -183,18 +210,46 @@ export const PostRunModal: React.FC<PostRunModalProps> = ({
           <span>📸 {copiedShare ? "copied story link! 📋" : "share card to group chat"}</span>
         </button>
 
-        {/* POOL SUBMISSION — only the pool actually linked before tracking started */}
-        {linkedPool && (
+        {/* POOL SUBMISSION — one real submitActivity per pool this run was linked to */}
+        {run.poolLinks.length > 0 && (
           <div className="glass-card p-3.5 flex flex-col gap-2.5">
             <div>
-              <span className="text-xs font-black text-white lowercase">submit to {linkedPool.title}</span>
+              <span className="text-xs font-black text-white lowercase">
+                submit to {run.poolLinks.length} pool{run.poolLinks.length > 1 ? "s" : ""}
+              </span>
               <p className="text-[11px] text-[#C7BEEA]/60">
-                Commits your signed GPS checkpoint chain onchain — claimable if you hit the goal.
+                Commits your signed GPS checkpoint chain onchain, once per pool — claimable if you hit each goal.
               </p>
             </div>
 
-            <StrideButton variant="neon" size="md" fullWidth disabled={submitting} onClick={handlePoolSubmit}>
-              {submitting ? "confirm in wallet..." : "submit to pool ↗"}
+            <div className="flex flex-col gap-1.5">
+              {run.poolLinks.map(link => {
+                const done = submittedIds.has(link.poolId);
+                const busy = submittingId === link.poolId;
+                return (
+                  <div
+                    key={link.poolId}
+                    className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-black/30 border border-white/5"
+                  >
+                    <span className="text-[11px] font-bold text-white lowercase">{link.poolTitle}</span>
+                    {done ? (
+                      <span className="text-[10px] font-bold text-[#CCFF00]">submitted ✓</span>
+                    ) : (
+                      <button
+                        onClick={() => handleSubmitOne(link)}
+                        disabled={busy || submittingAll}
+                        className="text-[10px] font-bold text-[#CCFF00] hover:underline disabled:opacity-50"
+                      >
+                        {busy ? "confirm in wallet..." : "submit ↗"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <StrideButton variant="neon" size="md" fullWidth disabled={submittingAll} onClick={handleSubmitAll}>
+              {submittingAll ? "confirm in wallet..." : `submit to all ${run.poolLinks.length} ↗`}
             </StrideButton>
           </div>
         )}

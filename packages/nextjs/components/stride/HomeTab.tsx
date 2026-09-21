@@ -173,7 +173,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                 </div>
 
                 <div className="flex flex-col items-end">
-                  {run.poolTitle ? (
+                  {(run.poolLinks ?? []).length > 0 ? (
                     <span className="text-[10px] font-bold text-[#CCFF00] px-2 py-0.5 rounded-full bg-[#CCFF00]/10 border border-[#CCFF00]/30 lowercase">
                       staked ✓
                     </span>

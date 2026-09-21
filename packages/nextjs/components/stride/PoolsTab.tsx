@@ -24,11 +24,10 @@ interface PoolsTabProps {
 export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, isLoading, onSelectPool, onPoolsChanged }) => {
   const [filter, setFilter] = useState<PoolStatus | "all">("all");
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
-  const [showJoinModal, setShowJoinModal] = useState<boolean>(false);
   const [creating, setCreating] = useState<boolean>(false);
-  const [joining, setJoining] = useState<boolean>(false);
+  const [joiningPoolId, setJoiningPoolId] = useState<string | null>(null);
 
-  const { isConnected } = useAccount();
+  const { isConnected, address: connectedAddress } = useAccount();
   const publicClient = usePublicClient({ chainId: CHAIN_ID });
   const { writeContractAsync } = useScaffoldWriteContract({ contractName: "Stride" });
 
@@ -38,14 +37,23 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, isLoading, onSelectPo
   const [stakeMON, setStakeMON] = useState<string>("0.5");
   const [durationDays, setDurationDays] = useState<string>("3");
 
-  // Form state for Join Pool
-  const [joinCodeInput, setJoinCodeInput] = useState<string>("");
-  const [joinError, setJoinError] = useState<string>("");
-
   const filteredPools = pools.filter(p => {
     if (filter === "all") return true;
     return p.status === filter;
   });
+
+  const joinPoolById = async (poolId: string, stakeWei: bigint) => {
+    const hash = await writeContractAsync({
+      functionName: "joinPool",
+      args: [BigInt(poolId)],
+      value: stakeWei,
+    });
+    // writeContractAsync can resolve to undefined without throwing (wrong network,
+    // contract briefly not resolved yet, wallet not connected) — useScaffoldWriteContract
+    // already shows its own error notification for those cases, but doesn't throw, so
+    // this check is required or a real failure silently gets reported as a success.
+    return !!hash;
+  };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,18 +76,32 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, isLoading, onSelectPo
         functionName: "createPool",
         args: [goalMeters, stakeWei, joinDeadline, activityDeadline, disputeWindow],
       });
+      if (!hash || !publicClient) return;
 
-      if (hash && publicClient) {
-        const receipt = await publicClient.getTransactionReceipt({ hash });
-        const [created] = parseEventLogs({ abi: STRIDE_ABI, eventName: "PoolCreated", logs: receipt.logs });
-        const poolId = created?.args?.poolId;
-        if (poolId !== undefined) {
-          setPoolTitle(poolId.toString(), title.trim() || `pool #${poolId.toString()}`);
+      const receipt = await publicClient.getTransactionReceipt({ hash });
+      const [created] = parseEventLogs({ abi: STRIDE_ABI, eventName: "PoolCreated", logs: receipt.logs });
+      const poolId = created?.args?.poolId;
+      if (poolId !== undefined) {
+        setPoolTitle(poolId.toString(), title.trim() || `pool #${poolId.toString()}`);
+      }
+
+      notification.success("Pool created onchain — now staking your own spot in it...");
+      setShowCreateModal(false);
+
+      // createPool alone never moves any MON — the creator still has to actually join,
+      // same as anyone else, to be a real participant in the pot. Chained here so
+      // "create & deposit stake" is true in one flow instead of a separate manual step.
+      if (poolId !== undefined) {
+        try {
+          const joined = await joinPoolById(poolId.toString(), stakeWei);
+          if (joined) {
+            notification.success("Joined your own pool — stake deposited!");
+          }
+        } catch {
+          notification.info("Pool created, but joining it failed — use the join button on the pool card to retry.");
         }
       }
 
-      notification.success("Pool created onchain — stake it out!");
-      setShowCreateModal(false);
       onPoolsChanged();
     } catch {
       // useScaffoldWriteContract already surfaces a parsed error notification on failure.
@@ -88,36 +110,23 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, isLoading, onSelectPo
     }
   };
 
-  const handleJoinSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const poolIdStr = joinCodeInput.trim();
-    const pool = pools.find(p => p.id === poolIdStr);
-    if (!pool) {
-      setJoinError("Pool ID not found. Ask the creator for their pool ID.");
-      return;
-    }
+  const handleJoinClick = async (pool: Pool, e: React.MouseEvent) => {
+    e.stopPropagation(); // don't also open the pool detail modal
     if (!isConnected) {
       notification.error("Connect a wallet first.");
       return;
     }
 
-    setJoining(true);
+    setJoiningPoolId(pool.id);
     try {
-      await writeContractAsync({
-        functionName: "joinPool",
-        args: [BigInt(poolIdStr)],
-        value: pool.stakeAmountWei ?? parseEther(pool.stakeAmount.split(" ")[0]),
-      });
-
+      const joined = await joinPoolById(pool.id, pool.stakeAmountWei ?? parseEther(pool.stakeAmount.split(" ")[0]));
+      if (!joined) return;
       notification.success("Joined pool — stake deposited onchain!");
-      setShowJoinModal(false);
-      setJoinCodeInput("");
-      setJoinError("");
       onPoolsChanged();
     } catch {
       // useScaffoldWriteContract already surfaces a parsed error notification on failure.
     } finally {
-      setJoining(false);
+      setJoiningPoolId(null);
     }
   };
 
@@ -130,17 +139,9 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, isLoading, onSelectPo
           <p className="text-xs text-[#C7BEEA]/60">stake together on shared goals</p>
         </div>
 
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowJoinModal(true)}
-            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold lowercase transition-all"
-          >
-            join 🔗
-          </button>
-          <StrideButton variant="neon" size="sm" onClick={() => setShowCreateModal(true)}>
-            + create pool
-          </StrideButton>
-        </div>
+        <StrideButton variant="neon" size="sm" onClick={() => setShowCreateModal(true)}>
+          + create pool
+        </StrideButton>
       </div>
 
       {/* Filter Tabs */}
@@ -176,6 +177,10 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, isLoading, onSelectPo
       <div className="flex flex-col gap-3">
         {filteredPools.map(pool => {
           const hasHitGoal = pool.participants.some(p => p.name === "You" && p.status === "hit_goal");
+          const alreadyJoined =
+            !!connectedAddress &&
+            pool.participants.some(p => p.address.toLowerCase() === connectedAddress.toLowerCase());
+          const canJoin = pool.status === "open" && !alreadyJoined;
 
           return (
             <div
@@ -216,7 +221,7 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, isLoading, onSelectPo
                 </div>
               </div>
 
-              {/* Participants and Tap indicator */}
+              {/* Participants, Join action, and Tap indicator */}
               <div className="flex items-center justify-between text-[11px] font-bold text-[#C7BEEA]/70 pt-1">
                 <div className="flex items-center gap-1.5">
                   <span>👥 {pool.participants.length} runners</span>
@@ -225,10 +230,26 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, isLoading, onSelectPo
                       bounty available 🕵️
                     </span>
                   )}
+                  {alreadyJoined && (
+                    <span className="text-[10px] text-[#CCFF00] bg-[#CCFF00]/15 px-2 py-0.5 rounded-full border border-[#CCFF00]/40">
+                      you&apos;re in ✓
+                    </span>
+                  )}
                 </div>
-                <span className="text-xs text-[#CCFF00] group-hover:translate-x-0.5 transition-transform">
-                  details ↗
-                </span>
+
+                {canJoin ? (
+                  <button
+                    onClick={e => handleJoinClick(pool, e)}
+                    disabled={joiningPoolId === pool.id}
+                    className="px-2.5 py-1 rounded-xl bg-[#CCFF00] text-black font-black text-[11px] lowercase tracking-tight shadow-[0_2px_0_#000] active:translate-y-0.5 disabled:opacity-60"
+                  >
+                    {joiningPoolId === pool.id ? "confirm in wallet..." : `join & stake ${pool.stakeAmount} 🏃`}
+                  </button>
+                ) : (
+                  <span className="text-xs text-[#CCFF00] group-hover:translate-x-0.5 transition-transform">
+                    details ↗
+                  </span>
+                )}
               </div>
             </div>
           );
@@ -302,49 +323,12 @@ export const PoolsTab: React.FC<PoolsTabProps> = ({ pools, isLoading, onSelectPo
                 </select>
               </div>
 
-              <StrideButton variant="neon" size="lg" fullWidth type="submit" className="mt-2" disabled={creating}>
-                {creating ? "confirm in wallet..." : "create & deposit stake ↗"}
-              </StrideButton>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* JOIN POOL MODAL */}
-      {showJoinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="w-full max-w-sm bg-[#110F0B] border-2 border-[#362A5E] rounded-3xl p-6 flex flex-col gap-4 shadow-[0_20px_60px_rgba(0,0,0,0.9)]">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-black text-white lowercase">join by pool id</h3>
-              <button onClick={() => setShowJoinModal(false)} className="text-white/60 hover:text-white">
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleJoinSubmit} className="flex flex-col gap-3">
-              <div>
-                <label className="text-xs font-bold text-[#C7BEEA]/80 block lowercase mb-1">pool id</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={joinCodeInput}
-                  onChange={e => {
-                    setJoinCodeInput(e.target.value.replace(/[^0-9]/g, ""));
-                    setJoinError("");
-                  }}
-                  className="w-full p-3 rounded-xl bg-[#201B14] border border-white/10 text-white text-sm font-mono font-black tracking-wider focus:border-[#CCFF00] outline-none"
-                  placeholder="e.g. 0, 1, 2..."
-                  required
-                />
-                {joinError && <p className="text-[11px] text-rose-400 mt-1">{joinError}</p>}
-              </div>
-
               <p className="text-[11px] text-[#C7BEEA]/60">
-                Joining sends the pool&apos;s exact stake amount onchain, straight from your wallet.
+                Two wallet confirmations: one to create the pool, one to deposit your own stake into it.
               </p>
 
-              <StrideButton variant="neon" size="lg" fullWidth type="submit" className="mt-2" disabled={joining}>
-                {joining ? "confirm in wallet..." : "join pool & stake 🏃"}
+              <StrideButton variant="neon" size="lg" fullWidth type="submit" className="mt-2" disabled={creating}>
+                {creating ? "confirm in wallet..." : "create & deposit stake ↗"}
               </StrideButton>
             </form>
           </div>

@@ -1,20 +1,18 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { StarburstBadge, StatusPill } from "./StrideBadge";
 import { StrideButton } from "./StrideButton";
 import { GPSEngine, LiveRunState, formatDistance, formatDuration, formatPace } from "~~/services/stride/gpsEngine";
-import { Pool, UserRun } from "~~/types/stride";
+import { Pool, PoolLink, UserRun } from "~~/types/stride";
 
 interface TrackTabProps {
   pools: Pool[];
-  preselectedPoolId?: string;
   runnerAddress: string;
   onFinishRun: (run: UserRun) => void;
 }
 
-export const TrackTab: React.FC<TrackTabProps> = ({ pools, preselectedPoolId, runnerAddress, onFinishRun }) => {
+export const TrackTab: React.FC<TrackTabProps> = ({ pools, runnerAddress, onFinishRun }) => {
   // Pre-run configuration state
-  const [selectedGoalDistance, setSelectedGoalDistance] = useState<number>(5000); // 5km default
-  const [selectedPoolId, setSelectedPoolId] = useState<string>(preselectedPoolId || "");
+  const [selectedGoalDistance, setSelectedGoalDistance] = useState<number>(5000); // 5km default, solo runs only
   const [enableGhostPace, setEnableGhostPace] = useState<boolean>(true);
   const [useSimulation, setUseSimulation] = useState<boolean>(true);
 
@@ -28,18 +26,20 @@ export const TrackTab: React.FC<TrackTabProps> = ({ pools, preselectedPoolId, ru
   const engineRef = useRef<GPSEngine | null>(null);
   const stopIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Synchronize with preselectedPoolId prop if provided
-  useEffect(() => {
-    if (preselectedPoolId) {
-      setSelectedPoolId(preselectedPoolId);
-      const matchedPool = pools.find(p => p.id === preselectedPoolId);
-      if (matchedPool) {
-        setSelectedGoalDistance(matchedPool.goalDistanceMeters);
-      }
-    }
-  }, [preselectedPoolId, pools]);
+  // Every pool the runner has joined and hasn't submitted to yet automatically counts
+  // toward this run — no picking. A real dispute checks a checkpoint's own poolId
+  // field, so the engine signs one independent chain per eligible pool below, all off
+  // the same real (lat, lng, cadence) stream.
+  const eligiblePools = pools.filter(p => {
+    if (p.status !== "open" && p.status !== "active") return false;
+    const me = p.participants.find(part => part.address.toLowerCase() === runnerAddress.toLowerCase());
+    return !!me && me.status === "joined";
+  });
 
-  const handleStartRun = () => {
+  const effectiveGoalDistance =
+    eligiblePools.length > 0 ? Math.max(...eligiblePools.map(p => p.goalDistanceMeters)) : selectedGoalDistance;
+
+  const handleStartRun = useCallback(() => {
     const engine = new GPSEngine(
       state => {
         setRunState(state);
@@ -51,30 +51,37 @@ export const TrackTab: React.FC<TrackTabProps> = ({ pools, preselectedPoolId, ru
       },
       {
         runnerAddress: runnerAddress as `0x${string}`,
-        // Baked into every checkpoint's signed payload, so it has to be decided before
-        // tracking starts, not after — a real dispute checks a checkpoint's own poolId
-        // field, so checkpoints signed for the wrong pool (or no pool) can never be
-        // validly submitted to a different one after the fact.
-        poolId: selectedPoolId ? Number(selectedPoolId) : undefined,
+        poolIds: eligiblePools.map(p => Number(p.id)),
       },
     );
 
     engineRef.current = engine;
     setIsTracking(true);
-    engine.start(selectedGoalDistance > 0 ? selectedGoalDistance : undefined, useSimulation);
-  };
+    engine.start(effectiveGoalDistance > 0 ? effectiveGoalDistance : undefined, useSimulation);
+  }, [runnerAddress, eligiblePools, effectiveGoalDistance, useSimulation]);
 
-  const handleStopRun = () => {
+  const handleStopRun = useCallback(() => {
     if (!engineRef.current) return;
     const finalState = engineRef.current.stop();
     setIsTracking(false);
 
-    const matchedPool = pools.find(p => p.id === selectedPoolId);
+    const poolLinks: PoolLink[] = eligiblePools.map(pool => ({
+      poolId: pool.id,
+      poolTitle: pool.title,
+      checkpoints: finalState.checkpointsByPool[Number(pool.id)] ?? [],
+      submitted: false,
+    }));
 
+    const finishedAt = Date.now();
     const finishedRun: UserRun = {
-      id: `run-${Date.now()}`,
-      title: matchedPool ? `${matchedPool.title} Run` : "Outdoor Activity Track",
-      timestamp: Date.now(),
+      id: `run-${finishedAt}`,
+      title:
+        poolLinks.length === 0
+          ? "Outdoor Activity Track"
+          : poolLinks.length === 1
+            ? `${poolLinks[0].poolTitle} Run`
+            : `Multi-Pool Run (${poolLinks.length} pools)`,
+      timestamp: finishedAt,
       distanceMeters: Math.round(finalState.distanceMeters),
       durationSeconds: finalState.elapsedSeconds,
       avgPace: formatPace(finalState.currentPaceSecPerKm),
@@ -82,14 +89,12 @@ export const TrackTab: React.FC<TrackTabProps> = ({ pools, preselectedPoolId, ru
       elevationMeters: 28,
       calories: Math.round((finalState.distanceMeters / 1000) * 65),
       routeCoordinates: finalState.coordinates,
-      checkpoints: finalState.checkpoints,
-      poolId: matchedPool?.id,
-      poolTitle: matchedPool?.title,
+      poolLinks,
       submittedToPool: false,
     };
 
     onFinishRun(finishedRun);
-  };
+  }, [eligiblePools, onFinishRun]);
 
   // Hold-to-stop gesture to prevent accidental touch during run
   const handleMouseDownStop = () => {
@@ -198,70 +203,59 @@ export const TrackTab: React.FC<TrackTabProps> = ({ pools, preselectedPoolId, ru
           <span className="text-xs text-[#C7BEEA]/60 font-mono">gps + cadence ready</span>
         </div>
 
-        {/* Goal Selector Bento Card */}
-        <div className="glass-card p-5 flex flex-col gap-4">
-          <div>
-            <span className="text-xs font-black text-white lowercase tracking-tight">1. choose goal distance</span>
-            <p className="text-[11px] text-[#C7BEEA]/70 mt-0.5">
-              Set a target or simply track freeform without a goal.
+        {/* Goal / Pool Card — automatic, no picking a pool */}
+        {eligiblePools.length > 0 ? (
+          <div className="glass-card p-5 flex flex-col gap-3">
+            <div>
+              <span className="text-xs font-black text-white lowercase tracking-tight">this run counts toward</span>
+              <p className="text-[11px] text-[#C7BEEA]/70 mt-0.5">
+                Every pool you&apos;ve joined gets its own signed proof from this same run, automatically.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {eligiblePools.map(pool => (
+                <div
+                  key={pool.id}
+                  className="py-2.5 px-3 rounded-xl bg-[#CCFF00]/10 border border-[#CCFF00]/30 flex items-center justify-between"
+                >
+                  <span className="text-xs font-bold text-white lowercase">{pool.title}</span>
+                  <span className="text-[10px] font-mono text-[#CCFF00]">
+                    {(pool.goalDistanceMeters / 1000).toFixed(1)} km goal
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-[#C7BEEA]/50">
+              Tracking toward the toughest goal ({(effectiveGoalDistance / 1000).toFixed(1)} km) — hitting it clears
+              every pool above.
             </p>
           </div>
+        ) : (
+          <div className="glass-card p-5 flex flex-col gap-4">
+            <div>
+              <span className="text-xs font-black text-white lowercase tracking-tight">choose goal distance</span>
+              <p className="text-[11px] text-[#C7BEEA]/70 mt-0.5">
+                You&apos;re not in any open pools right now, so this is a solo run — set a target or track freeform.
+              </p>
+            </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {goalOptions.map(opt => (
-              <button
-                key={opt.meters}
-                onClick={() => {
-                  setSelectedGoalDistance(opt.meters);
-                  setSelectedPoolId(""); // custom goal clears pool selection
-                }}
-                className={`py-3 px-4 rounded-2xl font-black text-sm tracking-tight transition-all text-center lowercase ${
-                  selectedGoalDistance === opt.meters && !selectedPoolId
-                    ? "bg-[#CCFF00] text-black border-2 border-black shadow-[0_3px_0_#000]"
-                    : "bg-white/5 text-white/80 border border-white/10 hover:border-white/30"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Optional Staked Pool Link */}
-          <div className="pt-2 border-t border-white/10">
-            <span className="text-xs font-black text-white lowercase tracking-tight">2. or link to an active pool</span>
-            <div className="flex flex-col gap-2 mt-2">
-              <button
-                onClick={() => setSelectedPoolId("")}
-                className={`py-2 px-3 rounded-xl text-xs font-bold text-left lowercase transition-all ${
-                  !selectedPoolId ? "bg-white/15 text-white" : "bg-white/5 text-[#C7BEEA]/60 hover:text-white"
-                }`}
-              >
-                none (solo run)
-              </button>
-              {pools
-                .filter(p => p.status === "active" || p.status === "open")
-                .map(pool => (
-                  <button
-                    key={pool.id}
-                    onClick={() => {
-                      setSelectedPoolId(pool.id);
-                      setSelectedGoalDistance(pool.goalDistanceMeters);
-                    }}
-                    className={`py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center justify-between lowercase transition-all ${
-                      selectedPoolId === pool.id
-                        ? "bg-[#CCFF00]/20 text-[#CCFF00] border border-[#CCFF00]/50"
-                        : "bg-white/5 text-[#C7BEEA]/80 hover:text-white"
-                    }`}
-                  >
-                    <span>
-                      {pool.title} ({(pool.goalDistanceMeters / 1000).toFixed(1)} km)
-                    </span>
-                    <span className="font-mono text-[10px] text-[#CCFF00]">{pool.stakeAmount}</span>
-                  </button>
-                ))}
+            <div className="grid grid-cols-2 gap-2">
+              {goalOptions.map(opt => (
+                <button
+                  key={opt.meters}
+                  onClick={() => setSelectedGoalDistance(opt.meters)}
+                  className={`py-3 px-4 rounded-2xl font-black text-sm tracking-tight transition-all text-center lowercase ${
+                    selectedGoalDistance === opt.meters
+                      ? "bg-[#CCFF00] text-black border-2 border-black shadow-[0_3px_0_#000]"
+                      : "bg-white/5 text-white/80 border border-white/10 hover:border-white/30"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
+        )}
 
         {/* Feature Toggles Card */}
         <div className="glass-card p-4 flex flex-col gap-3">
@@ -323,7 +317,7 @@ export const TrackTab: React.FC<TrackTabProps> = ({ pools, preselectedPoolId, ru
   const cadence = runState?.currentCadenceSpm || 168;
   const ghostDelta = runState?.ghostDeltaMeters || 0;
 
-  const targetGoal = selectedGoalDistance > 0 ? selectedGoalDistance : 0;
+  const targetGoal = effectiveGoalDistance > 0 ? effectiveGoalDistance : 0;
   const progressPercent = targetGoal > 0 ? Math.min(100, Math.round((distance / targetGoal) * 100)) : 0;
 
   return (

@@ -66,6 +66,18 @@ export interface Pool {
   finalized?: boolean;
 }
 
+/** One pool's own independently signed checkpoint chain for a single run — a runner
+ * can be in several pools at once, and every real step counts toward all of them, so
+ * each pool gets its own chain (each checkpoint's signed payload includes a specific
+ * poolId, matching Stride.sol's Checkpoint struct) rather than picking just one pool
+ * per run. */
+export interface PoolLink {
+  poolId: string;
+  poolTitle: string;
+  checkpoints: Checkpoint[];
+  submitted: boolean;
+}
+
 export interface UserRun {
   id: string;
   title: string;
@@ -77,9 +89,7 @@ export interface UserRun {
   elevationMeters: number;
   calories: number;
   routeCoordinates: [number, number][]; // [lat, lng]
-  checkpoints: Checkpoint[];
-  poolId?: string;
-  poolTitle?: string;
+  poolLinks: PoolLink[]; // empty = solo run, not counted toward any pool
   submittedToPool: boolean;
 }
 

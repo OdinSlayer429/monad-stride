@@ -46,10 +46,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ profile, badges, runs, o
   const handleRegisterDeviceKey = async () => {
     if (!sessionKeyAddress) return;
     try {
-      await registerDeviceKey({
+      const hash = await registerDeviceKey({
         functionName: "registerDeviceKey",
         args: [sessionKeyAddress as `0x${string}`],
       });
+      if (!hash) return;
       notification.success("Device key registered onchain — your signed checkpoints can now be verified.");
       refetchDeviceKey();
     } catch {

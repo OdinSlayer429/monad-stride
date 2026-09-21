@@ -3,7 +3,11 @@ import { Participant, Pool, TrophyBadge, UserProfile, UserRun } from "~~/types/s
 const STORAGE_KEYS = {
   PROFILE: "stride_user_profile_v1",
   POOLS: "stride_pools_v1",
-  RUNS: "stride_runs_v1",
+  // Bumped v1 -> v2: UserRun's shape changed (poolId/poolTitle/checkpoints replaced by
+  // poolLinks[]) for multi-pool tracking. Old v1 records lacked poolLinks entirely and
+  // crashed HomeTab on read (`run.poolLinks.length` on undefined) — versioning the key
+  // sidesteps needing migration logic for what's only ever been local cosmetic history.
+  RUNS: "stride_runs_v2",
   BADGES: "stride_badges_v1",
   HAS_ONBOARDED: "stride_has_onboarded_v1",
   PERMISSIONS_GRANTED: "stride_permissions_granted_v1",
@@ -207,9 +211,7 @@ export const INITIAL_RUNS: UserRun[] = [
       [37.7765, -122.4225],
       [37.7749, -122.4194],
     ],
-    checkpoints: [],
-    poolId: "pool-1",
-    poolTitle: "⚡ Monad Morning 5K Sprints",
+    poolLinks: [{ poolId: "pool-1", poolTitle: "⚡ Monad Morning 5K Sprints", checkpoints: [], submitted: true }],
     submittedToPool: true,
   },
   {
@@ -229,9 +231,7 @@ export const INITIAL_RUNS: UserRun[] = [
       [37.7835, -122.414],
       [37.782, -122.41],
     ],
-    checkpoints: [],
-    poolId: "pool-3",
-    poolTitle: "🏆 Sunset 3K Dash",
+    poolLinks: [{ poolId: "pool-3", poolTitle: "🏆 Sunset 3K Dash", checkpoints: [], submitted: true }],
     submittedToPool: true,
   },
 ];
@@ -423,30 +423,14 @@ export const StrideStorage = {
       localStorage.setItem(STORAGE_KEYS.RUNS, JSON.stringify(runs));
     }
 
-    // Update profile stats
+    // Update profile stats. Pool participation itself is real onchain state now (see
+    // useStridePools) — this used to also mutate a local mock pool's participant
+    // entry here, which only ever affected the old localStorage-only pool demo, never
+    // anything a real pool actually displays.
     const prof = this.getProfile();
     this.updateProfile({
       totalDistanceMeters: prof.totalDistanceMeters + run.distanceMeters,
     });
-
-    // If submitted to pool, update participant in pool
-    if (run.poolId) {
-      const pools = this.getPools();
-      const pool = pools.find(p => p.id === run.poolId);
-      if (pool) {
-        const p = pool.participants.find(part => part.name.includes("You"));
-        if (p) {
-          p.distanceMeters = run.distanceMeters;
-          p.durationSeconds = run.durationSeconds;
-          if (run.distanceMeters >= pool.goalDistanceMeters) {
-            p.status = "hit_goal";
-          } else {
-            p.status = "in_progress";
-          }
-          this.savePools(pools);
-        }
-      }
-    }
   },
 
   getBadges(): TrophyBadge[] {

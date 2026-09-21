@@ -35,7 +35,6 @@ const Home: NextPage = () => {
   const [selectedPoolForDetail, setSelectedPoolForDetail] = useState<Pool | null>(null);
   const [selectedPoolForResults, setSelectedPoolForResults] = useState<Pool | null>(null);
   const [finishedRunForModal, setFinishedRunForModal] = useState<UserRun | null>(null);
-  const [trackPreselectedPoolId, setTrackPreselectedPoolId] = useState<string | undefined>(undefined);
 
   // App Data State
   const [profile, setProfile] = useState<UserProfile>(() => StrideStorage.getProfile());
@@ -86,11 +85,10 @@ const Home: NextPage = () => {
     setFinishedRunForModal(newRun);
   };
 
-  // Called by PostRunModal AFTER a real `submitActivity` transaction has already
-  // confirmed onchain — this just mirrors that into local run history for display.
-  const handleRunSubmitted = (run: UserRun, poolId: string) => {
-    const updatedRun = { ...run, poolId, submittedToPool: true };
-    StrideStorage.addRun(updatedRun);
+  // Called by PostRunModal AFTER every linked pool's real `submitActivity` transaction
+  // has already confirmed onchain — this just mirrors that into local run history.
+  const handleRunSubmitted = (run: UserRun) => {
+    StrideStorage.addRun(run);
     setRuns(StrideStorage.getRuns());
     setProfile(StrideStorage.getProfile());
     setFinishedRunForModal(null);
@@ -187,12 +185,7 @@ const Home: NextPage = () => {
           )}
 
           {currentTab === "track" && (
-            <TrackTab
-              pools={pools}
-              preselectedPoolId={trackPreselectedPoolId}
-              runnerAddress={profile.address}
-              onFinishRun={handleFinishRun}
-            />
+            <TrackTab pools={pools} runnerAddress={profile.address} onFinishRun={handleFinishRun} />
           )}
 
           {currentTab === "pools" && (
@@ -210,13 +203,7 @@ const Home: NextPage = () => {
         </main>
 
         {/* Floating Bottom Navigation Thumb Dock */}
-        <BottomNav
-          currentTab={currentTab}
-          onSelectTab={tab => {
-            setCurrentTab(tab);
-            setTrackPreselectedPoolId(undefined); // reset pool track filter
-          }}
-        />
+        <BottomNav currentTab={currentTab} onSelectTab={tab => setCurrentTab(tab)} />
       </div>
 
       {/* OVERLAY MODALS */}
@@ -230,7 +217,6 @@ const Home: NextPage = () => {
       {/* 3. Post-Run Summary & Share Card */}
       <PostRunModal
         run={finishedRunForModal}
-        pools={pools}
         isOpen={!!finishedRunForModal}
         onClose={() => setFinishedRunForModal(null)}
         onSubmitted={handleRunSubmitted}
@@ -248,9 +234,8 @@ const Home: NextPage = () => {
           setSelectedPoolForDetail(null);
           setSelectedPoolForResults(pool);
         }}
-        onTrackForThisPool={pool => {
+        onTrackForThisPool={() => {
           setSelectedPoolForDetail(null);
-          setTrackPreselectedPoolId(pool.id);
           setCurrentTab("track");
         }}
       />
