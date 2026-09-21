@@ -1,83 +1,77 @@
-# 🏗 Scaffold-ETH 2
+# Stride ⚡
 
-<h4 align="center">
-  <a href="https://docs.scaffoldeth.io">Documentation</a> |
-  <a href="https://scaffoldeth.io">Website</a>
-</h4>
+Stake MON with your friends on a shared fitness goal. Your phone's GPS and motion
+sensors sign proof of every step in the background — no manual logging, no trusting
+an honor system. Whoever hits the goal splits the stakes of whoever doesn't.
 
-🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on the Ethereum blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
+Built for the **Monad Metropolis** hackathon (Trust, Identity & AI Infrastructure track).
 
-> [!NOTE]
-> 🤖 Scaffold-ETH 2 is AI-ready! It has everything agents need to build on Ethereum. Check `.agents/`, `.claude/`, `.opencode` or `.cursor/` for more info.
+## Why
 
-⚙️ Built using NextJS, RainbowKit, Foundry, Wagmi, Viem, and Typescript.
+"Stake on a fitness goal with friends" isn't a new idea — a few other projects have
+tried it. What none of them shipped is proof that survives someone actually trying to
+cheat: a GPS trace alone is trivial to fake. Stride signs a checkpoint every ~10
+seconds with a disposable device key (GPS + motion-sensor cadence together), chains
+each one to the last, and lets **anyone** — not just other participants — dispute a
+submission by presenting checkpoints that don't add up: a broken hash chain, an
+impossible speed, or GPS movement with zero footstep rhythm to back it up. Confirmed
+cheaters lose their entire stake; the disputer who caught them gets a bounty.
 
-- ✅ **Contract Hot Reload**: Your frontend auto-adapts to your smart contract as you edit it.
-- 🪝 **[Custom hooks](https://docs.scaffoldeth.io/hooks/)**: Collection of React hooks wrapper around [wagmi](https://wagmi.sh/) to simplify interactions with smart contracts with typescript autocompletion.
-- 🧱 [**Components**](https://docs.scaffoldeth.io/components/): Collection of common web3 components to quickly build your frontend.
-- 🔥 **Burner Wallet & Local Faucet**: Quickly test your application with a burner wallet and local faucet.
-- 🔐 **Integration with Wallet Providers**: Connect to different wallet providers and interact with the Ethereum network.
+## How it works
 
-![Debug Contracts tab](https://github.com/scaffold-eth/scaffold-eth-2/assets/55535804/b237af0c-5027-4849-a5c1-2e31495cccb1)
+1. **Stake with your group.** Anyone can create a pool: pick a distance goal and a
+   stake amount. Friends join with the matching stake before the window closes.
+2. **Run — your phone proves it.** Start tracking, and every joined pool gets its own
+   independently signed checkpoint chain from the same real GPS/motion data,
+   automatically — no picking which pool a run counts toward.
+3. **Submit and settle.** Hit the goal, submit your signed proof onchain, and pull your
+   share of the pot once the dispute window closes. No admin key, no pause button —
+   funds only move when a participant calls `withdraw()` themselves.
 
-## Requirements
+## Architecture
 
-Before you begin, you need to install the following tools:
+- **Contract** (`packages/foundry/contracts/Stride.sol`) — pool lifecycle
+  (`createPool`/`joinPool`/`submitActivity`/`finalize`/`withdraw`), EIP-712 typed
+  checkpoint signatures, and a permissionless dispute system (`dispute`,
+  `disputeAggregateDistance`) with four checkable violation types. 35 Foundry tests,
+  Slither-clean, three independent hardening rounds.
+- **Frontend** (`packages/nextjs`) — Scaffold-ETH 2 (Next.js App Router, RainbowKit,
+  Wagmi, Viem). Real `navigator.geolocation` + `devicemotion` capture, EIP-712 signing
+  with a disposable per-device session key (gasless — no wallet popup mid-run), and a
+  server-side route that pins the signed checkpoint chain to IPFS (with a privacy trim
+  on the first/last 10% of each run before anything goes public).
 
-- [Node (>= v20.18.3)](https://nodejs.org/en/download/)
-- Yarn ([v1](https://classic.yarnpkg.com/en/docs/install/) or [v2+](https://yarnpkg.com/getting-started/install))
-- [Git](https://git-scm.com/downloads)
+**Deployed on Monad testnet (chain 10143):**
+[`0xb9dC7Fb5c9eC478481891C3E1D677A2C751b9833`](https://testnet.monadvision.com/address/0xb9dC7Fb5c9eC478481891C3E1D677A2C751b9833)
 
-## Quickstart
+## Tech stack
 
-To get started with Scaffold-ETH 2, follow the steps below:
+Foundry (`via_ir`, OpenZeppelin `ReentrancyGuard`/`EIP712`/`ECDSA`) · Next.js · RainbowKit
+· Wagmi · Viem · Tailwind/DaisyUI · Monad testnet
 
-1. Install dependencies if it was skipped in CLI:
+## Running locally
 
-```
-cd my-dapp-example
+```bash
 yarn install
+
+# one-time: import the well-known public anvil test key
+cd packages/foundry
+cast wallet import --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6 \
+  --unsafe-password 'localhost' scaffold-eth-default
+
+# terminal 1 — local chain
+cd packages/foundry
+anvil
+
+# terminal 2 — deploy + generate ABIs
+cd packages/foundry
+forge script script/Deploy.s.sol --rpc-url localhost --account scaffold-eth-default \
+  --password localhost --broadcast --ffi
+node scripts-js/generateTsAbis.js
+
+# terminal 3 — frontend
+cd packages/nextjs
+yarn dev
 ```
 
-2. Run a local network in the first terminal:
-
-```
-yarn chain
-```
-
-This command starts a local Ethereum network using Foundry. The network runs on your local machine and can be used for testing and development. You can customize the network configuration in `packages/foundry/foundry.toml`.
-
-3. On a second terminal, deploy the test contract:
-
-```
-yarn deploy
-```
-
-This command deploys a test smart contract to the local network. The contract is located in `packages/foundry/contracts` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/foundry/script` to deploy the contract to the network. You can also customize the deploy script.
-
-4. On a third terminal, start your NextJS app:
-
-```
-yarn start
-```
-
-Visit your app on: `http://localhost:3000`. You can interact with your smart contract using the `Debug Contracts` page. You can tweak the app config in `packages/nextjs/scaffold.config.ts`.
-
-Run smart contract test with `yarn foundry:test`
-
-- Edit your smart contracts in `packages/foundry/contracts`
-- Edit your frontend homepage at `packages/nextjs/app/page.tsx`. For guidance on [routing](https://nextjs.org/docs/app/building-your-application/routing/defining-routes) and configuring [pages/layouts](https://nextjs.org/docs/app/building-your-application/routing/pages-and-layouts) checkout the Next.js documentation.
-- Edit your deployment scripts in `packages/foundry/script`
-
-
-## Documentation
-
-Visit our [docs](https://docs.scaffoldeth.io) to learn how to start building with Scaffold-ETH 2.
-
-To know more about its features, check out our [website](https://scaffoldeth.io).
-
-## Contributing to Scaffold-ETH 2
-
-We welcome contributions to Scaffold-ETH 2!
-
-Please see [CONTRIBUTING.MD](https://github.com/scaffold-eth/scaffold-eth-2/blob/main/CONTRIBUTING.md) for more information and guidelines for contributing to Scaffold-ETH 2.
+Visit `http://localhost:3000`. Run the contract test suite with `cd packages/foundry && forge test`.
