@@ -15,6 +15,9 @@ node_modules
 # misc
 .DS_Store
 
+# local AI-agent dev tooling config — not needed by anyone cloning the repo
+.claude
+
 # IDE
 .vscode
 .idea
