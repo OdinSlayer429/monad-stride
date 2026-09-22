@@ -7,6 +7,11 @@ import { pinCheckpoints } from "~~/services/stride/ipfs";
 import { PoolLink, UserRun } from "~~/types/stride";
 import { notification } from "~~/utils/scaffold-eth";
 
+// Mirrors Stride.sol's MIN_CHECKPOINT_COUNT — submitActivity reverts with
+// InsufficientCheckpointDensity below this, and checkpoints only form every 10s of
+// active foreground tracking, so a run needs ~10s+ elapsed before it's submittable.
+const MIN_CHECKPOINT_COUNT = 2;
+
 interface PostRunModalProps {
   run: UserRun | null;
   isOpen: boolean;
@@ -67,6 +72,12 @@ export const PostRunModal: React.FC<PostRunModalProps> = ({
     const lastCheckpoint = link.checkpoints[link.checkpoints.length - 1];
     if (!lastCheckpoint?.digest || link.checkpoints.length === 0) {
       notification.error(`No signed checkpoints for ${link.poolTitle} — nothing to submit.`);
+      return;
+    }
+    if (link.checkpoints.length < MIN_CHECKPOINT_COUNT) {
+      notification.error(
+        `${link.poolTitle} only recorded ${link.checkpoints.length} checkpoint — the chain requires at least ${MIN_CHECKPOINT_COUNT} (one every 10s of active tracking), so this would just revert onchain. Track for at least 10-15s longer next time.`,
+      );
       return;
     }
 
@@ -226,6 +237,7 @@ export const PostRunModal: React.FC<PostRunModalProps> = ({
               {run.poolLinks.map(link => {
                 const done = submittedIds.has(link.poolId);
                 const busy = submittingId === link.poolId;
+                const tooShort = link.checkpoints.length < MIN_CHECKPOINT_COUNT;
                 return (
                   <div
                     key={link.poolId}
@@ -234,6 +246,13 @@ export const PostRunModal: React.FC<PostRunModalProps> = ({
                     <span className="text-[11px] font-bold text-white lowercase">{link.poolTitle}</span>
                     {done ? (
                       <span className="text-[10px] font-bold text-[#CCFF00]">submitted ✓</span>
+                    ) : tooShort ? (
+                      <span
+                        className="text-[10px] font-bold text-[#FF2E93]"
+                        title="Track for at least 10-15s longer next time — checkpoints form every 10s."
+                      >
+                        too short ({link.checkpoints.length}/{MIN_CHECKPOINT_COUNT})
+                      </span>
                     ) : (
                       <button
                         onClick={() => handleSubmitOne(link)}

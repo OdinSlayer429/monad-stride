@@ -51,15 +51,21 @@ export function useDeployedContractInfo<TContractName extends ContractName>(
   const publicClient = usePublicClient({ chainId: selectedNetwork.id });
 
   useEffect(() => {
-    const checkContractDeployment = async () => {
+    let cancelled = false;
+
+    // Retries on a thrown error (rate-limited/flaky RPC) instead of immediately reporting
+    // NOT_FOUND — the public Monad testnet RPC caps requests at 15/sec, and a rejected
+    // request here was getting conflated with "contract genuinely not deployed", which
+    // made every write silently refuse with a misleading error under RPC load.
+    const checkContractDeployment = async (attempt = 0) => {
+      if (!isMounted() || !publicClient || cancelled) return;
+
+      if (!deployedContract) {
+        setStatus(ContractCodeStatus.NOT_FOUND);
+        return;
+      }
+
       try {
-        if (!isMounted() || !publicClient) return;
-
-        if (!deployedContract) {
-          setStatus(ContractCodeStatus.NOT_FOUND);
-          return;
-        }
-
         const code = await publicClient.getCode({
           address: deployedContract.address,
         });
@@ -71,12 +77,19 @@ export function useDeployedContractInfo<TContractName extends ContractName>(
         }
         setStatus(ContractCodeStatus.DEPLOYED);
       } catch (e) {
+        if (attempt < 3) {
+          setTimeout(() => checkContractDeployment(attempt + 1), 1000 * (attempt + 1));
+          return;
+        }
         console.error(e);
         setStatus(ContractCodeStatus.NOT_FOUND);
       }
     };
 
     checkContractDeployment();
+    return () => {
+      cancelled = true;
+    };
   }, [isMounted, contractName, deployedContract, publicClient]);
 
   return {

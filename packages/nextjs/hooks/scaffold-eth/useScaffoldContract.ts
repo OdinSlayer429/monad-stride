@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Account, Address, Chain, Client, Transport, getContract } from "viem";
 import { usePublicClient } from "wagmi";
 import { GetWalletClientReturnType } from "wagmi/actions";
@@ -34,9 +35,14 @@ export const useScaffoldContract = <
 
   const publicClient = usePublicClient({ chainId: selectedNetwork?.id });
 
-  let contract = undefined;
-  if (deployedContractData && publicClient) {
-    contract = getContract<
+  // Memoized so consumers get a STABLE object reference across renders — without this,
+  // getContract() ran fresh every render, which fed an unstable dependency into any
+  // effect/useCallback keyed on this return value (e.g. useStridePools' refetch),
+  // causing an infinite re-render → refetch → re-render loop that alone was enough to
+  // blow through the public Monad testnet RPC's 15 req/sec limit.
+  const contract = useMemo(() => {
+    if (!deployedContractData || !publicClient) return undefined;
+    return getContract<
       Transport,
       Address,
       Contract<TContractName>["abi"],
@@ -56,7 +62,7 @@ export const useScaffoldContract = <
         wallet: walletClient ? walletClient : undefined,
       } as any,
     });
-  }
+  }, [deployedContractData, publicClient, walletClient]);
 
   return {
     data: contract,

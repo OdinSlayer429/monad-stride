@@ -18,7 +18,11 @@ const scaffoldConfig = {
   // The networks on which your DApp is live
   targetNetworks: [chains.foundry, monadTestnet],
   // The interval at which your front-end polls the RPC servers for new data (it has no effect if you only target the local network (default is 4000))
-  pollingInterval: 3000,
+  // Raised from 3000: the public Monad testnet RPC caps requests at 15/sec, and 3s polling
+  // across several concurrently-mounted hooks (balance, deployed-contract checks, pool reads)
+  // was crowding that limit out, causing writes to falsely report "Target Contract is not
+  // deployed" when the rate-limited `getCode` pre-flight check got rejected mid-burst.
+  pollingInterval: 12000,
   // This is ours Alchemy's default API key.
   // You can get your own at https://dashboard.alchemyapi.io
   // It's recommended to store it in an env variable:
